@@ -14,101 +14,81 @@ import warnings
 import scipy.interpolate as interpolate
 
 class InitialCondition(object):
-    """Class to represent the initial condition of an AquaCrop run. 
-    Although not yet implemented, this class should include a method 
-    to read the model state from a dump netcdf, to enable a "warm" 
-    start.
-    """
-
     def __init__(self, InitialCondition_variable):
         self.var = InitialCondition_variable
-    
-    def initial(self):
 
-        # Define initial water contents
-        self.var.initialConditionFileNC = self.var._configuration.INITIAL_CONDITIONS['initialConditionNC']
+    def initial_water_content(self):
+        landmask = np.broadcast_to(
+            self.var.landmask,
+            (self.var.nLayer, self.var.nLat, self.var.nLon))
+        self.var.initialConditionFileNC = str(
+            self.var._configuration.INITIAL_CONDITIONS['initialConditionInputFile'])
+        self.var.initialConditionVarName = str(
+            self.var._configuration.INITIAL_CONDITIONS['initialConditionVariableName'])
         th = vos.netcdf2PCRobjCloneWithoutTime(
             self.var.initialConditionFileNC,
-            'th',
+            self.var.initialConditionVarName,
             cloneMapFileName=self.var.cloneMap)
         
-        init_cond_interp_method = self.var._configuration.globalOptions['InterpMethod']
-        # init_cond_type = self.var._configuration.globalOptions['initialConditionType']
+        th = th[landmask].reshape(self.var.nLayer, self.var.nCell)
+        self.var.th = np.broadcast_to(
+            th[None,None,...],
+            (1, 1, self.var.nLayer, self.var.nCell)).copy()
+        self.var.wc = (
+            self.var.th
+            * self.var.root_depth)
 
-        if init_cond_interp_method.lower() == 'depth':
-            depths = vos.get_dimension_variable(
-                self.var.initialConditionFileNC,'depth')
-            # depths = vos.netcdfDim2NumPy(
-            #     self.var.initialConditionFileNC,'depth')
-            zBot = np.cumsum(self.var.dz)
-            zTop = zBot - self.var.dz
-            zMid = (zTop + zBot) / 2
+    def initial_interception_storage(self):
+        # TODO:
+        self.var.interception_storage = np.zeros((1, 1, self.var.nCell))
 
-            # add zero point
-            if depths[0] > 0:
-                depths = np.concatenate([[0.], depths])
-                th = np.concatenate([th[0,...][None,:], th], axis=0)
+    def initial_surface_storage(self):
+        self.var.SurfaceStorage = np.zeros((1, 1, self.var.nCell))
 
-            if depths[-1] < zBot[-1]:
-                depths = np.concatenate([depths, [zBot[-1]]])
-                th = np.concatenate([th, th[-1,...][None,:]], axis=0)
+    def initial_snow_cover(self):
+        # see CWATM, snow_cover.py, lines 143-150
+        num_snow_layers = 7
+        self.var.snow_cover_layer = np.zeros((1, 1, int(num_snow_layers), self.var.nCell))
+        self.var.snow_cover = np.sum(self.var.snow_cover_layer, axis=2) / float(num_snow_layers)
 
-            # now interpolate to compartments
-            f_thini = interpolate.interp1d(depths, th, axis=0, bounds_error=False, fill_value=(th[0,...], th[-1,...]))
-            th = f_thini(zMid)
-        else:
-            th = th[self.var.layerIndex,:,:]
-       
-        # NB original Matlab code also allows users to supply initial condition
-        # as field capacity, wilting point or saturation. We do not explicitly
-        # include this option but of course it is possible to do this by
-        # supplying a netCDF file containing the values. However, note that in
-        # the original version if field capacity is specified and groundwater
-        # table is present the initial water content is set to th_fc_adj once
-        # this variable has been computed.
-
-        th = th[self.var.landmask_comp].reshape(self.var.nComp, self.var.nCell)
-        self.var.th = np.broadcast_to(th[None,None,...], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell)).copy()
-
-    # def getState(self):
-    #     result = {}
-    #     state_vars_soil = [
-    #         'AerDays','IrrCum','IrrNetCum',
-    #         'DaySubmerged','Epot','Tpot','WTinSoil','AerDaysComp',
-    #         'TrRatio','SurfaceStorage','SurfaceStorageIni','th',
-    #         'Wsurf','EvapZ','Stage2','Wstage2']
-
-    #     state_vars_crop = [
-    #         # 'SeasonCounter',
-    #         'DelayedGDDs','DelayedCDs','PctLagPhase','tEarlySen',
-    #         'DAP','PreAdj','CropMature','CropDead','Germination',
-    #         'PrematSenes','HarvestFlag','Stage','Fpre','Fpost',
-    #         'fpost_dwn','fpost_upp','Fpol','sCor1','sCor2',
-    #         'GrowthStage','CC','CCadj','CC_NS','CCadj_NS','B',
-    #         'B_NS','HI','HIadj','CCxAct','CCxAct_NS','CCxW',
-    #         'CCxW_NS','CCxEarlySen','rCor','Zroot','CC0adj']
-
-    #     state_vars = state_vars_soil + state_vars_crop
-    #     for var in state_vars:
-    #         result[var] = vars(self.var)[var]
-
+    def initial_frost_index(self):
+        self.var.frost_index = np.zeros((1, 1, self.var.nCell))
+        
+    def initial(self):
+        pass
+        
+    def get_state(self):
+        # basic idea here is to provide a list of all variables
+        # which define the model state (i.e. variables which evolve
+        # from one time step to the next) and add these to a
+        # dictionary which can subsequently be written to a netCDF 
+        result = {}
+        state_vars = []
+        for var in state_vars:
+            result[var] = vars(self.var)[var]
+            
     def dynamic(self):
-        # Condition to identify crops which are not being grown or crops which
-        # have only just finished being grown. The water content of crops
-        # meeting this condition is used to compute the area-weighted initial
-        # condition
-        if np.any(self.var.GrowingSeasonDayOne):
-            cond1 = np.logical_not(self.var.GrowingSeasonIndex) | self.var.GrowingSeasonDayOne
-            cond1 = np.broadcast_to(cond1[:,:,None,:], self.var.th.shape)
-            th = np.copy(self.var.th)
-            th[(np.logical_not(cond1))] = np.nan
+        pass
 
-            # TEMPORARY FIX
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=RuntimeWarning)
-                th_ave = np.nanmean(th, axis=0) # average along farm dimension
+class InitialConditionNaturalVegetation(InitialCondition):
+        
+    def initial(self):
+        self.initial_water_content()
+        self.initial_interception_storage()
+        self.initial_surface_storage()
+        self.initial_snow_cover()
+        self.initial_frost_index()
 
-            th_ave = np.broadcast_to(th_ave, (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
-            # th_ave = th_ave[None,:,:] * np.ones((self.var.nLC))[:,None,None]
-            cond2 = np.broadcast_to(self.var.GrowingSeasonDayOne[:,:,None,:], self.var.th.shape)
-            self.var.th[cond2] = th_ave[cond2]
+class InitialConditionManagedLand(InitialConditionNaturalVegetation):
+    pass
+
+class InitialConditionSealedLand(InitialCondition):
+
+    def initial(self):
+        self.initial_interception_storage()
+        self.initial_snow_cover()
+        self.initial_frost_index()
+
+class InitialConditionWater(InitialCondition):
+    def initial(self):
+        pass

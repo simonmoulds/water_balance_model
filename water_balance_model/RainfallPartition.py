@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# AquaCrop crop growth model
-
 import numpy as np
 
 import logging
@@ -25,10 +23,11 @@ class RainfallPartition(object):
         infiltration using the curve number approach.
         """
         # Add crop dimension to precipitation
-        P = np.broadcast_to(self.var.precipitation[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))
+        P = np.broadcast_to(
+            self.var.meteo.precipitation[None,None,:],
+            (self.var.nFarm, self.var.nLC, self.var.nCell))
+
         zcn = np.broadcast_to(self.var.zCN[:,:,None,:], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
-        # P = self.var.precipitation[None,None,:] * np.ones((self.var.nLC))[:,None]
-        # zcn = self.var.zCN[:,None,:] * np.ones((self.var.nComp))[None,:,None]
 
         cond1 = ((self.var.Bunds == 0) | (self.var.zBund < 0.001))
 

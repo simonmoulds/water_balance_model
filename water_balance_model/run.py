@@ -13,7 +13,7 @@ from hydro_model_builder.Reporting import Reporting
 from hydro_model_builder import disclaimer
 
 # from FAO66_behaviour import FAO66_behaviour
-from LandSurface import LandSurface
+from WaterBalanceModel import WaterBalanceModel
 from Configuration import Configuration
 import variable_list
 
@@ -41,7 +41,7 @@ def main():
     logger.info('Transient simulation run has started')
     deterministic_runner = DeterministicRunner(
         # FAO66_behaviour,
-        LandSurface,
+        WaterBalanceModel,
         configuration,
         currTimeStep,
         variable_list,

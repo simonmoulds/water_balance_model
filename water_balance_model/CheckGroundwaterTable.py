@@ -18,21 +18,21 @@ class CheckGroundwaterTable(object):
         self.var.th_fc_adj = np.copy(self.var.th_fc_comp)
         self.var.WTinSoil = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell),dtype=bool)
 
-    def reset_initial_conditions(self):
-        self.var.WTinSoil[self.var.GrowingSeasonDayOne] = False
+    # def reset_initial_conditions(self):
+    #     self.var.WTinSoil[self.var.GrowingSeasonDayOne] = False
         
     def dynamic(self):
 
-        # reset initial conditions
-        if np.any(self.var.GrowingSeasonDayOne):
-            self.reset_initial_conditions()
+        # # reset initial conditions - IS THIS REQUIRED???
+        # if np.any(self.var.GrowingSeasonDayOne):
+        #     self.reset_initial_conditions()
         
-        if self.var.WaterTable:
-            
+        # if self.var.WaterTable:
+        if self.var.groundwater.WaterTable:
             # Copy depth to groundwater, and add crop dimension for convenience
             # zGW = self.var.zGW[None,:] * np.ones((self.var.nLC))[:,None]
             # zGW_comp = zGW[:,None,:] * np.ones((self.var.nComp))[None,:,None]
-            zGW_comp = np.broadcast_to(self.var.zGW[None,None,None,:], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
+            zGW_comp = np.broadcast_to(self.var.groundwater.zGW[None,None,None,:], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
             # zGW_comp = self.var.zGW[None,None,None,:] * np.ones((self.var.nLC,self.var.nComp))[:,:,None]
 
             # get the mid point of each compartment

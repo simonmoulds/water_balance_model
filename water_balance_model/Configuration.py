@@ -296,6 +296,7 @@ class Configuration(object):
         options, to check the validity of options and to infill 
         missing keys"""
         self.repair_global_options()
+        self.repair_landcover_options()
         
     def repair_global_options(self):
         if 'globalOptions' not in self.allSections:
@@ -315,3 +316,18 @@ class Configuration(object):
                 self.timeStep     = None
                 self.timeStepUnit = None
 
+
+    def repair_landcover_options(self):
+        if 'dynamicLandCover' not in self.LANDCOVER.keys():
+            self.LANDCOVER['dynamicLandCover'] = 0
+
+        if 'staticLandCoverYear' not in self.LANDCOVER.keys():
+            if not bool(self.LANDCOVER['dynamicLandCover']):
+                logger.error('If land cover is not dynamic the year for which land cover data is used must be supplied')
+
+        lc_types = [lc.strip() for lc in self.LANDCOVER['landCoverTypes'].split(',')]
+        for lc in lc_types:
+            lc_config = getattr(self, lc)
+            if 'interceptCapInputFile' not in lc_config.keys():
+                lc_config['interceptCapInputFile'] = "None"
+                lc_config['interceptCapVariableName'] = "None"

@@ -8,17 +8,109 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Drainage(object):
+    def __init__(self, Drainage_variable):
+        self.var = Drainage_variable
+
+        # TODO: percolation impedance
+        self.var.percolation_impedance = np.zeros((1, 1, self.var.nCell))
+
+    def initial(self):
+        # self.var.FluxOut = np.zeros((self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
+        self.var.DeepPerc = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        self.var.Recharge = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        # self.var.RechargeVol = np.zeros((self.var.nFarm, self.var.nCell))
+
+    def dynamic(self):
+
+        # TODO: create a method in SoilParameters to up
+        available_water = np.maximum(0., self.var.wc - self.var.wc_res)
+        storage_capacity = self.var.wc_sat - self.var.wc
+        sat_term = available_water / self.var.wc_range
+        sat_term.clip(0., 1.)
+        k = self.var.ksat * np.sqrt(sat_term) * np.square(1. - (1. - sat_term ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
+        
+        no_sub_steps = 3
+        dtsub = 1. / no_sub_steps
+
+        # Copy current value of W1 and W2 to temporary variables,
+        # because computed fluxes may need correction for storage
+        # capacity of subsoil and in case soil is frozen (after loop)        
+        wc_temp = self.var.wc.copy()
+        
+        # Initialize top- to subsoil flux (accumulated value for all sub-steps)
+        # Initialize fluxes out of subsoil (accumulated value for all sub-steps)
+        self.var.perc1to2 = np.zeros((1, 1, self.var.nCell))
+        self.var.perc2to3 = np.zeros((1, 1, self.var.nCell))
+        self.var.perc3toGW = np.zeros((1, 1, self.var.nCell))
+
+        # Start iterating
+        for i in xrange(no_sub_steps):
+            if i > 0:
+                available_water = np.maximum(0., wc_temp - self.var.wc_res)
+                sat_term = available_water / self.var.wc_range
+                sat_term.clip(0., 1.)
+                k = self.var.ksat * np.sqrt(sat_term) * np.square(1. - (1. - sat_term ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
+
+            # flux from topsoil to subsoil
+            subperc1to2 = np.minimum(
+                available_water[...,0,:],
+                np.minimum(k[...,0,:] * dtsub, storage_capacity[...,1,:]))
+            subperc2to3 = np.minimum(
+                available_water[...,1,:],
+                np.minimum(k[...,1,:] * dtsub, storage_capacity[...,2,:]))
+            subperc3toGW = np.minimum(
+                available_water[...,2,:],
+                np.minimum(k[...,2,:] * dtsub, available_water[...,2,:]))
+
+            available_water[...,0,:] -= subperc1to2
+            available_water[...,1,:] -= (subperc2to3 + subperc1to2)
+            available_water[...,2,:] -= (subperc3toGW + subperc2to3)
+
+            wtemp = available_water + self.var.wc_res
+            storage_capacity = self.var.wc_sat - wtemp
+
+            self.var.perc1to2 += subperc1to2
+            self.var.perc2to3 += subperc2to3
+            self.var.perc3toGW += subperc3toGW
+
+        # When the soil is frozen (frostindex larger than threshold), no perc1 and 2
+        self.var.perc1to2[self.var.FrostIndex > self.var.FrostIndexThreshold] = 0
+        self.var.perc2to3[self.var.FrostIndex > self.var.FrostIndexThreshold] = 0
+
+        # update soil moisture
+        self.var.wc[...,0,:] -= self.var.perc1to2
+        self.var.wc[...,1,:] -= (self.var.perc2to3 + self.var.perc1to2)
+        self.var.wc[...,2,:] -= (self.var.perc3toGW + self.var.perc2to3)
+
+        # compute the amount of water that could not infiltrate and add this water to the surface runoff
+        excess = np.maximum(self.var.wc[...,0,:] - self.var.wc_sat[...,0,:], 0.)
+        self.var.Infiltration -= excess
+        self.var.Runoff += excess        
+
+        # CWATM, soil.py, lines 540-542
+        recharge_or_preferential_flow = self.var.perc3toGW + self.var.PrefFlow
+        self.var.interflow = self.var.percolation_impedance * recharge_or_preferential_flow
+        self.var.DeepPerc = (
+            (1 - self.var.percolation_impedance)
+            * recharge_or_preferential_flow
+            - self.var.capillary_rise_from_gw)
+        
+        # update water content
+        self.var.wc[...,0,:] = np.minimum(self.var.wc[...,0,:], self.var.wc_sat[...,0,:])
+        self.var.th = self.var.wc / self.var.root_depth
+    
+
+class Drainage_old(object):
     """Class to infiltrate incoming water"""
     
     def __init__(self, Drainage_variable):
         self.var = Drainage_variable
 
     def initial(self):
-        self.var.FluxOut = np.zeros((self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
+        # self.var.FluxOut = np.zeros((self.var.nFarm, self.var.nLC, self.var.nLayer, self.var.nCell))
         self.var.DeepPerc = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        # self.var.Recharge = np.zeros((self.var.nCell))
         self.var.Recharge = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        self.var.RechargeVol = np.zeros((self.var.nFarm, self.var.nCell))
+        # self.var.RechargeVol = np.zeros((self.var.nFarm, self.var.nCell))
         
     def compute_dthdt(self, th, th_s, th_fc, th_fc_adj, tau):
         dthdt = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))

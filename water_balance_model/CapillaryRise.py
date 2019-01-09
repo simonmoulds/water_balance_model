@@ -13,6 +13,96 @@ logger = logging.getLogger(__name__)
 class CapillaryRise(object):
     def __init__(self, CapillaryRise_variable):
         self.var = CapillaryRise_variable
+        self.capillary_rise = True  # TODO: put this in configuration options
+        
+    def initial(self):
+        self.var.capillary_rise_frac = np.zeros((1, 1, self.var.nCell))
+
+    def compute_capillary_rise_frac(self):        
+        zGW = np.broadcast_to(self.var.groundwater.zGW[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))
+        # approximate height of groundwater table and
+        # corresponding reach of cell under influence of
+        # capillary rise
+        if self.capillary_rise:
+            CRFRAC = np.minimum(1.,  1. - (self.var.dzRel0100 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0100 - self.var.dzRel0090))
+            CRFRAC = np.where(zGW < self.var.dzRel0090, 0.9 - (self.var.dzRel0090 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0090 - self.var.dzRel0080), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0080, 0.8 - (self.var.dzRel0080 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0080 - self.var.dzRel0070), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0070, 0.7 - (self.var.dzRel0070 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0070 - self.var.dzRel0060), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0060, 0.6 - (self.var.dzRel0060 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0060 - self.var.dzRel0050), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0050, 0.5 - (self.var.dzRel0050 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0050 - self.var.dzRel0040), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0040, 0.4 - (self.var.dzRel0040 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0040 - self.var.dzRel0030), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0030, 0.3 - (self.var.dzRel0030 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0030 - self.var.dzRel0020), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0020, 0.2 - (self.var.dzRel0020 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0020 - self.var.dzRel0010), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0010, 0.1 - (self.var.dzRel0010 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0010 - self.var.dzRel0005), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0005, 0.05 - (self.var.dzRel0005 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0005 - self.var.dzRel0001), CRFRAC)
+            CRFRAC = np.where(zGW < self.var.dzRel0001, 0.01 - (self.var.dzRel0001 - zGW) * 0.1 / np.maximum(1e-3, self.var.dzRel0001), CRFRAC)
+            self.var.capillary_rise_fraction = np.maximum(0. , np.minimum(1., CRFRAC))
+        else:
+            self.var.capillary_rise_fraction = 0.
+
+    def dynamic(self):
+        self.compute_capillary_rise_frac()
+
+        # saturation term in van Genuchten equation
+        available_water = np.maximum(0., self.var.wc - self.var.wc_res)        
+        sat_term = available_water / self.var.wc_range
+        sat_term.clip(0., 1.)
+
+        # unsaturated conductivity - TODO: sort out van_genuchten coefficients!!!
+        k = (
+            self.var.ksat
+            * np.sqrt(sat_term)
+            * np.square(
+                1. - (1. - sat_term ** self.var.van_genuchten_inv_m)
+                ** self.var.van_genuchten_m))
+
+        sat_term_fc = (
+            np.maximum(0., self.var.wc - self.var.wc_res)
+            / (self.var.wc_fc - self.var.wc_res))
+        capillary_rise1 = np.minimum(
+            np.maximum(0., (1 - sat_term_fc[...,0,:]) * k[...,1,:]),
+            self.var.k_fc12)
+        capillary_rise2 = np.minimum(
+            np.maximum(0., (1 - sat_term_fc[...,1,:]) * k[...,2,:]),
+            self.var.k_fc23)
+        
+        self.var.capillary_rise_from_gw = np.maximum(0., (1 - sat_term_fc[...,2,:]) * np.sqrt(self.var.ksat[...,2,:] * k[...,2,:]))
+
+        self.var.capillary_rise_from_gw *= (0.5 * self.var.capillary_rise_frac)
+        self.var.capillary_rise_from_gw.clip(0, None)  # storGroundwater???
+
+        self.var.wc[...,0,:] += capillary_rise1
+        self.var.wc[...,1,:] += (capillary_rise2 - capillary_rise1)
+        self.var.wc[...,2,:] += (self.var.capillary_rise_from_gw - capillary_rise2)
+
+        # CWATM:
+        # satTermFC1 = np.maximum(0., self.var.w1[No] - self.var.wres1[No]) / (self.var.wfc1[No] - self.var.wres1[No])
+        # satTermFC2 = np.maximum(0., self.var.w2[No] - self.var.wres2[No]) / (self.var.wfc2[No] - self.var.wres2[No])
+        # satTermFC3 = np.maximum(0., self.var.w3[No] - self.var.wres3[No]) / (self.var.wfc3[No] - self.var.wres3[No])
+        # capRise1 = np.minimum(np.maximum(0., (1 - satTermFC1) * kUnSat2), self.var.kunSatFC12[No])
+        # capRise2 = np.minimum(np.maximum(0., (1 - satTermFC2) * kUnSat3), self.var.kunSatFC23[No])
+        # self.var.capRiseFromGW[No] = np.maximum(0., (1 - satTermFC3) * np.sqrt(self.var.KSat3[NoSoil] * kUnSat3))
+        # self.var.capRiseFromGW[No] = 0.5 * self.var.capRiseFrac * self.var.capRiseFromGW[No]
+        # self.var.capRiseFromGW[No] = np.minimum(np.maximum(0., self.var.storGroundwater), self.var.capRiseFromGW[No])
+
+        # self.var.w1[No] = self.var.w1[No] + capRise1
+        # self.var.w2[No] = self.var.w2[No] - capRise1 +  capRise2
+        # self.var.w3[No] = self.var.w3[No] - capRise2 + self.var.capRiseFromGW[No]
+      
+
+
+
+
+
+
+
+
+
+
+        
+class CapillaryRiseOld(object):
+    def __init__(self, CapillaryRise_variable):
+        self.var = CapillaryRise_variable
 
     def initial(self):
         self.var.CrTot = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
@@ -112,9 +202,9 @@ class CapillaryRise(object):
         """Function to calculate capillary rise from a shallow 
         groundwater table
         """
-        if self.var.WaterTable:
+        if self.var.groundwater.WaterTable:
 
-            zGW = np.broadcast_to(self.var.zGW[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))
+            zGW = np.broadcast_to(self.var.groundwater.zGW[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))
             # zGW = self.var.zGW[None,:] * np.ones((self.var.nLC))[:,None]
             zBot = np.sum(self.var.dz)
             zBotMid = zBot - (self.var.dz[-1] / 2)  # depth to midpoint of bottom layer

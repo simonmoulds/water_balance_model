@@ -15,30 +15,37 @@ logger = logging.getLogger(__name__)
 class Groundwater(object):
 
     def __init__(self, Groundwater_variable):
-        self.var = Groundwater_variable
+        # self = Groundwater_variable
+        self._configuration = Groundwater_variable._configuration
+        self._modelTime = Groundwater_variable._modelTime
+        self.cloneMapAttributes = Groundwater_variable.cloneMapAttributes
+        self.cloneMap = Groundwater_variable.cloneMap
+        self.landmask = Groundwater_variable.landmask
 
     def initial(self):
-        self.var.WaterTable = bool(int(self.var._configuration.groundwaterOptions['WaterTable']))
-        self.var.VariableWaterTable = bool(int(self.var._configuration.groundwaterOptions['VariableWaterTable']))
-        self.var.DailyGroundwaterNC = bool(int(self.var._configuration.groundwaterOptions['DailyGroundwaterNC']))
+        self.WaterTable = bool(int(self._configuration.GROUNDWATER['WaterTable']))
+        self.VariableWaterTable = bool(int(self._configuration.GROUNDWATER['VariableWaterTable']))
+        self.DailyGroundwaterNC = bool(int(self._configuration.GROUNDWATER['DailyGroundwaterInputFile']))
 
-        self.var.zGW = np.ones((self.var.nCell)) * 999.
+        zGW = np.ones_like(self.landmask) * 999.
+        self.zGW = zGW[self.landmask]
+        # self.zGW = np.ones((self.nCell)) * 999.
         
-        if self.var.WaterTable:
-            self.var.gwFileNC = self.var._configuration.groundwaterOptions['groundwaterNC']
-            self.var.gwVarName = self.var._configuration.groundwaterOptions['groundwaterVariableName']
-            self.var.gwTimeLag = int(self.var._configuration.groundwaterOptions['timeLag'])
+        if self.WaterTable:
+            self.gwFileNC = self._configuration.GROUNDWATER['groundwaterInputFile']
+            self.gwVarName = self._configuration.GROUNDWATER['groundwaterVariableName']
+            self.gwTimeLag = int(self._configuration.GROUNDWATER['timeLag'])
 
             # if the program is configured to read daily groundwater files and
             # the time lag is positive, we also need to read an initial value
             # file
-            if self.var.DailyGroundwaterNC & (self.var.gwTimeLag > 0):
-                initialGroundwaterLevelNC = str(self.var._configuration.groundwaterOptions['initialGroundwaterLevelNC'])
+            if self.DailyGroundwaterNC & (self.gwTimeLag > 0):
+                initialGroundwaterLevelNC = str(self._configuration.INITIAL_CONDITIONS['initialGroundwaterLevelInputFile'])
                 zGW = vos.netcdf2PCRobjCloneWithoutTime(initialGroundwaterLevelNC,
-                                                        self.var.gwVarName,
-                                                        cloneMapFileName = self.var.cloneMap,
+                                                        self.gwVarName,
+                                                        cloneMapFileName = self.cloneMap,
                                                         LatitudeLongitude = True)
-                self.var.zGW = zGW[self.var.landmask]
+                self.zGW = zGW[self.landmask]
 
     def read(self):
 
@@ -46,28 +53,28 @@ class Groundwater(object):
         # - the default one
         method_for_time_index = None
         # - based on the ini/configuration file (if given)
-        # if 'time_index_method_for_groundwater_netcdf' in self.var._configuration.groundwaterOptions.keys() and\
-        #                                                    self.var._configuration.groundwaterOptions['time_index_method_for_groundwater_netcdf'] != "None":
-        #     method_for_time_index = self.var._configuration.groundwaterOptions['time_index_method_for_groundwater_netcdf']
+        # if 'time_index_method_for_groundwater_netcdf' in self._configuration.GROUNDWATER.keys() and\
+        #                                                    self._configuration.GROUNDWATER['time_index_method_for_groundwater_netcdf'] != "None":
+        #     method_for_time_index = self._configuration.GROUNDWATER['time_index_method_for_groundwater_netcdf']
         
         # reading groundwater:
-        if self.var.WaterTable:
-            if self.var.VariableWaterTable:
+        if self.WaterTable:
+            if self.VariableWaterTable:
 
                 # DailyGroundwaterNC is a logical indicating whether a separate
                 # netCDF is used for each time step - use this for coupling
-                if self.var.DailyGroundwaterNC:
+                if self.DailyGroundwaterNC:
 
                     # introduce this test so that we do not ask the model to read
                     # a file from a timestep prior to the current simulation. 
-                    if not (self.var._modelTime.isFirstTimestep() & (self.var.gwTimeLag > 0)):
+                    if not (self._modelTime.isFirstTimestep() & (self.gwTimeLag > 0)):
                         
-                        tm = self.var._modelTime.currTime - datetime.timedelta(self.var.gwTimeLag)
+                        tm = self._modelTime.currTime - datetime.timedelta(self.gwTimeLag)
                         day, month, year = tm.day, tm.month, tm.year
 
                         # Fill named placeholders (NB we have already checked that
                         # the specified filename contains these placeholders)
-                        gwFileNC = self.var.gwFileNC.format(day=day, month=month, year=year)
+                        gwFileNC = self.gwFileNC.format(day=day, month=month, year=year)
 
                         # Check whether the file is present in the filesystem; if
                         # it doesn't, enter a while loop which periodically checks
@@ -88,26 +95,26 @@ class Groundwater(object):
                             raise AQError(msg)
 
                         zGW = vos.netcdf2PCRobjCloneWithoutTime(gwFileNC,
-                                                                self.var.gwVarName,
-                                                                cloneMapFileName = self.var.cloneMap,
+                                                                self.gwVarName,
+                                                                cloneMapFileName = self.cloneMap,
                                                                 LatitudeLongitude = True)
-                        self.var.zGW = zGW[self.var.landmask]
+                        self.zGW = zGW[self.landmask]
                         
                 else:
-                    zGW = vos.netcdf2PCRobjClone(self.var.gwFileNC,
-                                                 self.var.gwVarName,
+                    zGW = vos.netcdf2PCRobjClone(self.gwFileNC,
+                                                 self.gwVarName,
                                                  str(currTimeStep.fulldate),
                                                  useDoy = method_for_time_index,
-                                                 cloneMapFileName = self.var.cloneMap,
+                                                 cloneMapFileName = self.cloneMap,
                                                  LatitudeLongitude = True)
-                    self.var.zGW = zGW[self.var.landmask]
+                    self.zGW = zGW[self.landmask]
                     
             else:
-                zGW = vos.netcdf2PCRobjCloneWithoutTime(self.var.gwFileNC,
-                                                        self.var.gwVarName,
-                                                        cloneMapFileName = self.var.cloneMap,
+                zGW = vos.netcdf2PCRobjCloneWithoutTime(self.gwFileNC,
+                                                        self.gwVarName,
+                                                        cloneMapFileName = self.cloneMap,
                                                         LatitudeLongitude = True)    
-                self.var.zGW = zGW[self.var.landmask]
+                self.zGW = zGW[self.landmask]
                     
     def dynamic(self):
         self.read()

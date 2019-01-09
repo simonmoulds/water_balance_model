@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 class Meteo(object):
 
     def __init__(self, Meteo_variable):
-        self.var = Meteo_variable
+        self._configuration = Meteo_variable._configuration
+        self._modelTime = Meteo_variable._modelTime
+        self.cloneMapAttributes = Meteo_variable.cloneMapAttributes
+        self.cloneMap = Meteo_variable.cloneMap
+        self.landmask = Meteo_variable.landmask
 
     def initial(self):
         self.set_input_filenames()
@@ -25,25 +29,25 @@ class Meteo(object):
         self.set_meteo_conversion_factors()
         # TODO: find out if we can delete this
         # # daily time step
-        # self.var.usingDailyTimeStepForcingData = False
-        # if self.var._configuration.timeStep == 1.0 and self.var._configuration.timeStepUnit == "day":
-        #     self.var.usingDailyTimeStepForcingData = True
+        # self.usingDailyTimeStepForcingData = False
+        # if self._configuration.timeStep == 1.0 and self._configuration.timeStepUnit == "day":
+        #     self.usingDailyTimeStepForcingData = True
 
     def set_input_filenames(self):
-        self.var.preFileNC = self.var._configuration.meteoOptions['precipitationNC']
-        # self.var.tmpFileNC = self.var._configuration.meteoOptions['temperatureNC']
-        self.var.minDailyTemperatureNC = self.var._configuration.meteoOptions['minDailyTemperatureNC']
-        self.var.maxDailyTemperatureNC = self.var._configuration.meteoOptions['maxDailyTemperatureNC']
-        self.var.etpFileNC = self.var._configuration.meteoOptions['refETPotFileNC']        
+        self.preFileNC = self._configuration.METEO['precipitationInputFile']
+        self.minDailyTemperatureNC = self._configuration.METEO['minDailyTemperatureInputFile']
+        self.maxDailyTemperatureNC = self._configuration.METEO['maxDailyTemperatureInputFile']
+        self.avgDailyTemperatureNC = self._configuration.METEO['avgDailyTemperatureInputFile']
+        self.etpFileNC = self._configuration.METEO['refETPotInputFile']        
         self.check_input_filenames()
 
     def check_input_filenames(self):
         self.check_format_args([
-            self.var.preFileNC,
-            # self.var.tmpFileNC,
-            self.var.minDailyTemperatureNC,
-            self.var.maxDailyTemperatureNC,
-            self.var.etpFileNC
+            self.preFileNC,
+            # self.tmpFileNC,
+            self.minDailyTemperatureNC,
+            self.maxDailyTemperatureNC,
+            self.etpFileNC
             ])
         
     def check_format_args(self, filenames):
@@ -56,17 +60,18 @@ class Meteo(object):
                     raise Messages.AQError(msg)
                 
     def set_nc_variable_names(self):
-        self.var.preVarName = self.var._configuration.meteoOptions['precipitationVariableName']
-        self.var.tmnVarName = self.var._configuration.meteoOptions['tminVariableName']
-        self.var.tmxVarName = self.var._configuration.meteoOptions['tmaxVariableName']
-        self.var.refETPotVarName = self.var._configuration.meteoOptions['refETPotVariableName']
+        self.preVarName = self._configuration.METEO['precipitationVariableName']
+        self.tminVarName = self._configuration.METEO['minDailyTemperatureVariableName']
+        self.tmaxVarName = self._configuration.METEO['maxDailyTemperatureVariableName']
+        self.tavgVarName = self._configuration.METEO['avgDailyTemperatureVariableName']
+        self.refETPotVarName = self._configuration.METEO['refETPotVariableName']
         self.check_nc_variable_names()
         
     def check_nc_variable_names(self):
-        # filenames = [self.var.preFileNC, self.var.tmpFileNC, self.var.tmpFileNC, self.var.etpFileNC]
-        filenames = [self.var.preFileNC, self.var.minDailyTemperatureNC, self.var.maxDailyTemperatureNC, self.var.etpFileNC]
-        variable_names = [self.var.preVarName, self.var.tmnVarName, self.var.tmxVarName, self.var.refETPotVarName]
-        day, month, year = (self.var._modelTime.startTime.day, self.var._modelTime.startTime.month, self.var._modelTime.year)        
+        # filenames = [self.preFileNC, self.tmpFileNC, self.tmpFileNC, self.etpFileNC]
+        filenames = [self.preFileNC, self.minDailyTemperatureNC, self.maxDailyTemperatureNC, self.avgDailyTemperatureNC, self.etpFileNC]
+        variable_names = [self.preVarName, self.tminVarName, self.tmaxVarName, self.tavgVarName, self.refETPotVarName]
+        day, month, year = (self._modelTime.startTime.day, self._modelTime.startTime.month, self._modelTime.year)        
         result = []
         msg = []
         for filename,variable in zip(filenames,variable_names):
@@ -80,114 +85,131 @@ class Meteo(object):
             raise Messages.AQError(msg)
         
     def set_meteo_conversion_factors(self):
-        self.var.preConst       = 0.0
-        self.var.preFactor      = 1.0  # divide this method up?
-        self.var.tmpConst       = 0.0
-        self.var.tmpFactor      = 1.0
-        self.var.refETPotConst  = 0.0
-        self.var.refETPotFactor = 1.0
-        if 'precipitationConstant' in self.var._configuration.meteoOptions:
-            self.var.preConst = np.float64(self.var._configuration.meteoOptions['precipitationConstant'])
-        if 'precipitationFactor' in self.var._configuration.meteoOptions:
-            self.var.preFactor = np.float64(self.var._configuration.meteoOptions['precipitationFactor'])
-        if 'temperatureConstant' in self.var._configuration.meteoOptions:
-            self.var.tmpConst = np.float64(self.var._configuration.meteoOptions['temperatureConstant'])
-        if 'temperatureFactor' in self.var._configuration.meteoOptions:
-            self.var.tmpFactor = np.float64(self.var._configuration.meteoOptions['temperatureFactor'])
-        if 'ETpotConstant' in self.var._configuration.meteoOptions:
-            self.var.refETPotConst = np.float64(self.var._configuration.meteoOptions['ETpotConstant'])
-        if 'ETpotFactor' in self.var._configuration.meteoOptions:
-            self.var.refETPotFactor = np.float64(self.var._configuration.meteoOptions['ETpotFactor'])
+        self.preConst       = 0.0
+        self.preFactor      = 1.0  # divide this method up?
+        self.tminConst       = 0.0
+        self.tminFactor      = 1.0
+        self.tmaxConst       = 0.0
+        self.tmaxFactor      = 1.0
+        self.tavgConst       = 0.0
+        self.tavgFactor      = 1.0
+        self.etrefConst  = 0.0
+        self.etrefFactor = 1.0
+        if 'precipitationConstant' in self._configuration.METEO:
+            self.preConst = np.float64(self._configuration.METEO['precipitationConstant'])
+        if 'precipitationFactor' in self._configuration.METEO:
+            self.preFactor = np.float64(self._configuration.METEO['precipitationFactor'])
+        if 'minDailyTemperatureConstant' in self._configuration.METEO:
+            self.tminConst = np.float64(self._configuration.METEO['minDailyTemperatureConstant'])
+        if 'minDailyTemperatureFactor' in self._configuration.METEO:
+            self.tminFactor = np.float64(self._configuration.METEO['minDailyTemperatureFactor'])
+        if 'maxDailyTemperatureConstant' in self._configuration.METEO:
+            self.tmaxConst = np.float64(self._configuration.METEO['maxDailyTemperatureConstant'])
+        if 'maxDailyTemperatureFactor' in self._configuration.METEO:
+            self.tmaxFactor = np.float64(self._configuration.METEO['maxDailyTemperatureFactor'])
+        if 'avgDailyTemperatureConstant' in self._configuration.METEO:
+            self.tavgConst = np.float64(self._configuration.METEO['avgDailyTemperatureConstant'])
+        if 'avgDailyTemperatureFactor' in self._configuration.METEO:
+            self.tavgFactor = np.float64(self._configuration.METEO['avgDailyTemperatureFactor'])
+        if 'ETpotConstant' in self._configuration.METEO:
+            self.etrefConst = np.float64(self._configuration.METEO['refETPotConstant'])
+        if 'ETpotFactor' in self._configuration.METEO:
+            self.etrefFactor = np.float64(self._configuration.METEO['refETPotFactor'])
         
     def adjust_precipitation_input_data(self):
-        # print self.var.landmask.shape
-        # print self.var.precipitation.shape
-        self.var.precipitation = self.var.preConst + self.var.preFactor * self.var.precipitation[self.var.landmask]
-        self.var.precipitation = np.maximum(0.0, self.var.precipitation)
-        self.var.precipitation[np.isnan(self.var.precipitation)] = 0.0
-        self.var.precipitation = np.floor(self.var.precipitation * 100000.)/100000.
+        self.precipitation = self.preConst + self.preFactor * self.precipitation[self.landmask]
+        self.precipitation = np.maximum(0.0, self.precipitation)
+        self.precipitation[np.isnan(self.precipitation)] = 0.0
+        self.precipitation = np.floor(self.precipitation * 100000.)/100000.
 
     def read_precipitation_data(self):
         method_for_time_index = None
-        self.var.precipitation = vos.netcdf2PCRobjClone(
-            self.var.preFileNC.format(
-                day=self.var._modelTime.currTime.day,
-                month=self.var._modelTime.currTime.month,
-                year=self.var._modelTime.currTime.year),
-            self.var.preVarName,
-            str(self.var._modelTime.fulldate),
+        self.precipitation = vos.netcdf2PCRobjClone(
+            self.preFileNC.format(
+                day=self._modelTime.currTime.day,
+                month=self._modelTime.currTime.month,
+                year=self._modelTime.currTime.year),
+            self.preVarName,
+            str(self._modelTime.fulldate),
             useDoy = method_for_time_index,
-            cloneMapAttributes = self.var.cloneMapAttributes,
-            cloneMapFileName = self.var.cloneMap,
+            cloneMapAttributes = self.cloneMapAttributes,
+            cloneMapFileName = self.cloneMap,
             LatitudeLongitude = True)
         self.adjust_precipitation_input_data()
 
     def adjust_temperature_data(self):
-        self.var.tmin = self.var.tmpConst + self.var.tmpFactor * self.var.tmin[self.var.landmask]
-        self.var.tmax = self.var.tmpConst + self.var.tmpFactor * self.var.tmax[self.var.landmask]
-        self.var.tmin = np.round(self.var.tmin * 1000.) / 1000.
-        self.var.tmax = np.round(self.var.tmax * 1000.) / 1000.
+        self.tmin = self.tminConst + self.tminFactor * self.tmin
+        self.tmax = self.tmaxConst + self.tmaxFactor * self.tmax
+        self.tavg = self.tavgConst + self.tavgFactor * self.tmax
+        self.tmin = np.round(self.tmin * 1000.) / 1000.
+        self.tmax = np.round(self.tmax * 1000.) / 1000.
+        self.tavg = np.round(self.tavg * 1000.) / 1000.
         
     def read_temperature_data(self):
-        # TODO: work out if we can remove this
-        # # method for finding time index in the temperature netdf file:
-        # # - the default one
-        # method_for_time_index = None
-        # # - based on the ini/configuration file (if given)
-        # if 'time_index_method_for_temperature_netcdf' in self.var._configuration.meteoOptions.keys() and\
-        #                                                  self.var._configuration.meteoOptions['time_index_method_for_temperature_netcdf'] != "None":
-        #     method_for_time_index = self.var._configuration.meteoOptions['time_index_method_for_temperature_netcdf']
-
         method_for_time_index = None        
-        self.var.tmin = vos.netcdf2PCRobjClone(
-            self.var.minDailyTemperatureNC.format(
-                day=self.var._modelTime.currTime.day,
-                month=self.var._modelTime.currTime.month,
-                year=self.var._modelTime.currTime.year),
-            self.var.tmnVarName,
-            str(self.var._modelTime.fulldate),
+        self.tmin = vos.netcdf2PCRobjClone(
+            self.minDailyTemperatureNC.format(
+                day=self._modelTime.currTime.day,
+                month=self._modelTime.currTime.month,
+                year=self._modelTime.currTime.year),
+            self.tminVarName,
+            str(self._modelTime.fulldate),
             useDoy = method_for_time_index,
-            cloneMapAttributes = self.var.cloneMapAttributes,
-            cloneMapFileName = self.var.cloneMap,
-            LatitudeLongitude = True)
+            cloneMapAttributes = self.cloneMapAttributes,
+            cloneMapFileName = self.cloneMap,
+            LatitudeLongitude = True)[self.landmask]
 
-        self.var.tmax = vos.netcdf2PCRobjClone(
-            self.var.maxDailyTemperatureNC.format(
-                day=self.var._modelTime.currTime.day,
-                month=self.var._modelTime.currTime.month,
-                year=self.var._modelTime.currTime.year),
-            self.var.tmxVarName,
-            str(self.var._modelTime.fulldate),
+        self.tmax = vos.netcdf2PCRobjClone(
+            self.maxDailyTemperatureNC.format(
+                day=self._modelTime.currTime.day,
+                month=self._modelTime.currTime.month,
+                year=self._modelTime.currTime.year),
+            self.tmaxVarName,
+            str(self._modelTime.fulldate),
             useDoy = method_for_time_index,
-            cloneMapAttributes = self.var.cloneMapAttributes,
-            cloneMapFileName = self.var.cloneMap,
-            LatitudeLongitude = True)        
+            cloneMapAttributes = self.cloneMapAttributes,
+            cloneMapFileName = self.cloneMap,
+            LatitudeLongitude = True)[self.landmask]
+
+        self.tavg = vos.netcdf2PCRobjClone(
+            self.avgDailyTemperatureNC.format(
+                day=self._modelTime.currTime.day,
+                month=self._modelTime.currTime.month,
+                year=self._modelTime.currTime.year),
+            self.tavgVarName,
+            str(self._modelTime.fulldate),
+            useDoy = method_for_time_index,
+            cloneMapAttributes = self.cloneMapAttributes,
+            cloneMapFileName = self.cloneMap,
+            LatitudeLongitude = True)[self.landmask]
+        
         self.adjust_temperature_data()
 
     def adjust_reference_ET_data(self):
-        self.var.referencePotET = self.var.refETPotConst + self.var.refETPotFactor * self.var.referencePotET[self.var.landmask]
+        self.referencePotET = self.etrefConst + self.etrefFactor * self.referencePotET[self.landmask]
 
     def read_reference_ET_data(self):
-        # TODO: work out if this is required
-        # if 'time_index_method_for_ref_pot_et_netcdf' in self.var._configuration.meteoOptions.keys() and self.var._configuration.meteoOptions['time_index_method_for_ref_pot_et_netcdf'] != "None":
-        #     method_for_time_index = self.var._configuration.meteoOptions['time_index_method_for_ref_pot_et_netcdf']
-        
         method_for_time_index = None
-        self.var.referencePotET = vos.netcdf2PCRobjClone(
-            self.var.etpFileNC.format(
-                day=self.var._modelTime.currTime.day,
-                month=self.var._modelTime.currTime.month,
-                year=self.var._modelTime.currTime.year),
-            self.var.refETPotVarName,
-            str(self.var._modelTime.fulldate), 
+        self.referencePotET = vos.netcdf2PCRobjClone(
+            self.etpFileNC.format(
+                day=self._modelTime.currTime.day,
+                month=self._modelTime.currTime.month,
+                year=self._modelTime.currTime.year),
+            self.refETPotVarName,
+            str(self._modelTime.fulldate), 
             useDoy = method_for_time_index,
-            cloneMapAttributes = self.var.cloneMapAttributes,
-            cloneMapFileName=self.var.cloneMap,
+            cloneMapAttributes = self.cloneMapAttributes,
+            cloneMapFileName=self.cloneMap,
             LatitudeLongitude = True)
         self.adjust_reference_ET_data()
-    
+
+    def read_reference_EW_data(self):
+        # **TODO**
+        self.EWref = self.referencePotET.copy()
+        
     def dynamic(self):
         self.read_precipitation_data()
         self.read_temperature_data()
         self.read_reference_ET_data()
+        self.read_reference_EW_data()  # for open water evaporation
 

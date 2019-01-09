@@ -7,48 +7,42 @@ import pcraster as pcr
 from hydro_model_builder.Model import Model
 from hydro_model_builder import VirtualOS as vos
 
-# from water_balance_model import WaterBalanceModel
-from Meteo import Meteo
-from Groundwater import Groundwater
-from LandCover import LandCover
-from SoilAndTopoParameters import SoilAndTopoParameters
+from LandCover import *
 
-import logging
-logger = logging.getLogger(__name__)
+# TODO: should this really be called 'LandSurface' ?
+class LandSurface(object):
+    def __init__(self, LandSurface_variable):
+        # self.var = LandCover_variable
+        # self.var.dynamicLandCover
+        # self.var.FixedLandCoverYear
+        self.forest_module = Forest(LandSurface_variable, 'forest')
+        self.grassland_module = Grassland(LandSurface_variable, 'grassland')
+        self.irrPaddy_module = IrrPaddy(LandSurface_variable, 'irrPaddy')
+        self.irrNonPaddy_module = IrrNonPaddy(LandSurface_variable, 'irrNonPaddy')
+        self.sealed_module = Sealed(LandSurface_variable, 'sealed')
+        self.water_module = Water(LandSurface_variable, 'water')
 
-class LandSurface(Model):    
-    def __init__(self, configuration, modelTime, initialState = None):
-        super(LandSurface, self).__init__(
-            configuration,
-            modelTime,
-            initialState)
-        
-        self.meteo_module = Meteo(self)
-        self.groundwater_module = Groundwater(self)
-        self.lc_module = LandCover(self)
-        # self.soil_module = SoilAndTopoParameters(self)
-        
     def initial(self):
-        self.meteo_module.initial()
-        self.groundwater_module.initial()
-        self.lc_module.initial()
-        # self.soil_module.initial()
-        self.get_model_dimensions()
+        self.forest_module.initial()
+        self.grassland_module.initial()
+        self.irrPaddy_module.initial()
+        self.irrNonPaddy_module.initial()
+        self.sealed_module.initial()
+        self.water_module.initial()    
         
-    def get_model_dimensions(self):
-        # TODO: remove dependency on PCRaster
-        latitudes = np.unique(pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), vos.MV))[::-1]
-        longitudes = np.unique(pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), vos.MV))
-        self.dimensions = {
-            'lat'      : latitudes,
-            'lon'      : longitudes,
-            'time'     : None,
-            'depth'    : 10, #np.arange(self.nComp), # TODO - put nComp in config section [SOIL]
-            'crop'     : 6, #np.arange(self.nLC),
-            'farm'     : 1, #np.arange(self.nFarm)
-        }
-        
+    def correct_cover_frac(self):
+        """Function to correct cover fraction, such that in 
+        each grid square the various land cover fractions sum 
+        to one
+        """
+        pass
+    
     def dynamic(self):
-        self.meteo_module.dynamic()
-        print np.max(self.tmin)
-        self.lc_module.dynamic()        
+        self.correct_cover_frac()
+        self.forest_module.dynamic()
+        self.grassland_module.dynamic()
+        self.irrPaddy_module.dynamic()
+        self.irrNonPaddy_module.dynamic()
+        self.sealed_module.dynamic()
+        self.water_module.dynamic()    
+        # need some function here to bring everything together
