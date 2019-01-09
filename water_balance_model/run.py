@@ -7,12 +7,11 @@ import sys
 from pcraster.framework import DynamicModel
 from pcraster.framework import DynamicFramework
 
-from hydro_model_builder.DeterministicRunner import DeterministicRunner
+from DeterministicRunner import DeterministicRunner
 from hydro_model_builder.ModelTime import ModelTime
-from hydro_model_builder.Reporting import Reporting
 from hydro_model_builder import disclaimer
 
-# from FAO66_behaviour import FAO66_behaviour
+from Reporting import Reporting
 from WaterBalanceModel import WaterBalanceModel
 from Configuration import Configuration
 import variable_list
