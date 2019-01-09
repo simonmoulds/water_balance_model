@@ -16,12 +16,14 @@ class Infiltration(object):
 
     def initial(self):        
         # Surface storage between bunds
-        cond1 = (self.var.Bunds == 0) & (self.var.zBund > 0.001)
-        SurfaceStorage = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        SurfaceStorage[cond1] = self.var.BundWater[cond1]
-        SurfaceStorage = np.clip(SurfaceStorage, None, self.var.zBund)
-        self.var.SurfaceStorage = np.copy(SurfaceStorage)
-        self.var.SurfaceStorageIni = np.copy(SurfaceStorage)
+        # cond1 = (self.var.Bunds == 0) & (self.var.zBund > 0.001)
+        # SurfaceStorage = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        # SurfaceStorage[cond1] = self.var.BundWater[cond1]
+        # SurfaceStorage = np.clip(SurfaceStorage, None, self.var.zBund)
+        # self.var.SurfaceStorage = np.copy(SurfaceStorage)
+        # self.var.SurfaceStorageIni = np.copy(SurfaceStorage)
+        self.var.Infiltration = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        self.var.Runoff = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
         self.var.PrefFlow = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
 
     def reset_initial_conditions(self):

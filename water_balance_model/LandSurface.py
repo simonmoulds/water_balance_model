@@ -9,7 +9,6 @@ from hydro_model_builder import VirtualOS as vos
 
 from LandCover import *
 
-# TODO: should this really be called 'LandSurface' ?
 class LandSurface(object):
     def __init__(self, LandSurface_variable):
         # self.var = LandCover_variable

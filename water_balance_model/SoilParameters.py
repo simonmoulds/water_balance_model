@@ -116,12 +116,42 @@ class SoilParameters(object):
             van_genuchten_lambda[None,None,:,:],
             (1, 1, self.var.nLayer, self.var.nCell))
 
-    # def compute_unsaturated_hydraulic_conductivity(self):
-    #     available_water = np.maximum(0., self.var.wc - self.var.wc_res)
-    #     storage_capacity = self.var.wc_sat - self.var.wc
-    #     sat_term = available_water / self.var.wc_range
-    #     sat_term.clip(0., 1.)
-    #     k = self.var.ksat * np.sqrt(sat_term) * np.square(1. - (1. - sat_term ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
+    def compute_van_genuchten_coefficients(self):
+        # compute van Genuchten n, m coefficients
+        self.var.van_genuchten_n = self.var.van_genuchten_lambda + 1
+        self.var.van_genuchten_m = self.var.van_genuchten_lambda / self.var.van_genuchten_n
+        self.var.van_genuchten_inv_n = 1. / self.var.van_genuchten_n
+        self.var.van_genuchten_inv_m = 1. / self.var.van_genuchten_m
+        self.var.van_genuchten_inv_alpha = 1. / self.var.van_genuchten_alpha
+        
+    def compute_soil_hydraulic_parameters(self):
+
+        self.compute_van_genuchten_coefficients()
+
+        # compute root zone water contents
+        self.var.wc_sat = self.var.th_s * self.var.root_depth
+        self.var.wc_res = self.var.th_res * self.var.root_depth
+        self.var.wc_range = self.var.wc_sat - self.var.wc_res
+
+        # soil moisture at field capacity (pF2, 100 cm) [mm water slice]
+        # Mualem equation (van Genuchten, 1980)
+        self.var.wc_fc = (
+            self.var.wc_res
+            + self.var.wc_range
+            / ((1 + (self.var.van_genuchten_alpha * 100) ** self.var.van_genuchten_n) ** self.var.van_genuchten_m))
+
+        # soil moisture at wilting point (pF4.2, 10**4.2 cm) [mm water slice]
+        # Mualem equation (van Genuchten, 1980)        
+        self.var.wc_wp = (
+            self.var.wc_res
+            + self.var.wc_range
+            / ((1 + (self.var.van_genuchten_alpha * (10 ** 4.2)) ** self.var.van_genuchten_n) ** self.var.van_genuchten_m))
+
+        # not sure where these are used???
+        sat_term_fc = np.maximum(0., self.var.wc_fc - self.var.wc_res) / self.var.wc_range
+        k_unsat_fc = self.var.ksat * np.sqrt(sat_term_fc) * np.square(1 - (1 - sat_term_fc ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
+        self.var.k_fc12 = np.sqrt(k_unsat_fc[...,0,:] * k_unsat_fc[...,1,:])
+        self.var.k_fc23 = np.sqrt(k_unsat_fc[...,1,:] * k_unsat_fc[...,2,:])
         
     def dynamic(self):
         pass

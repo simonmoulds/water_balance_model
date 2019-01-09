@@ -9,6 +9,8 @@ import datetime as datetime
 
 from SoilParameters import *
 from TopoParameters import *
+from IrrigationParameters import *
+from FieldManagementParameters import *
 
 class SealedLandParameters(object):
     def __init__(self, LandCoverParameters_variable, config_section_name):
@@ -24,9 +26,9 @@ class SealedLandParameters(object):
             config_section_name)
         
     def initial(self):
+        self.read_static_params()
         # self.soil_parameters_module.initial()
         self.topo_parameters_module.initial()
-        self.read_static_params()
         self.var.interception_capacity = (
             np.ones((self.var.nFarm, self.var.nLC, self.var.nCell))
             * self.var.minInterceptCap)
@@ -48,7 +50,10 @@ class NaturalVegetationParameters(object):
             config_section_name)        
         self.topo_parameters_module = TopoParametersNaturalVegetation(
             LandCoverParameters_variable,
-            config_section_name)        
+            config_section_name)
+        self.field_mgmt_parameters_module = FieldManagementParameters(
+            LandCoverParameters_variable,
+            config_section_name)
 
         self.dynamicLandCover = bool(int(self.var._configuration.LANDCOVER['dynamicLandCover']))
         self.staticLandCoverYear = None
@@ -65,14 +70,10 @@ class NaturalVegetationParameters(object):
     def initial(self):
         self.soil_parameters_module.initial()
         self.topo_parameters_module.initial()
+        self.field_mgmt_parameters_module.initial()
         self.initialize_dynamic_params()
         self.read_static_params()
-        self.root_zone_water()
-        # self.compute_root_depth()
-        self.set_field_management_params()
-        # self.update_cover_fraction()
-        # self.update_crop_coefficient()
-        # self.update_intercept_capacity()
+        self.soil_parameters_module.compute_soil_hydraulic_parameters()
         
     def initialize_dynamic_params(self):
         """Function to initialize dynamic parameters"""
@@ -80,18 +81,6 @@ class NaturalVegetationParameters(object):
         self.var.coverFraction = arr_zeros.copy()
         self.var.cropCoefficient = arr_zeros.copy()
         self.var.interception_capacity = arr_zeros.copy()
-
-    def set_field_management_params(self):
-        """Function to set field management parameters for 
-        natural land cover. The parameters must be set 
-        because they are used by certain methods which 
-        operate on natural and managemed land. However, 
-        using a value of zero effectively indicates that 
-        there is no field management for these land covers.
-        """
-        self.var.Bunds = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell), dtype=np.bool)
-        self.var.zBund = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        self.var.BundWater = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
 
     def read_root_fraction(self):
         self.rootFractionNC = str(self.lc_configuration['rootFractionInputFile'])
@@ -136,39 +125,17 @@ class NaturalVegetationParameters(object):
             0.05,
             self.var.soil_depth[1] + self.var.soil_depth[2] - self.var.root_depth[1])
 
-        # CWATM:
-        # i = 0
-        # for coverType in self.var.coverTypes[:4]:
-        #     # calculate rootdepth for each soillayer and each land cover class
-        #     # self.var.rootDepth[0][i] = np.minimum(self.var.soildepth[0], self.var.maxRootDepth[i])
-        #     self.var.rootDepth[0][i] = self.var.soildepth[0].copy()  # 0.05 m
-        #     # if land cover = forest
-        #     if coverType <> 'grassland':
-        #         # soil layer 1 = root max of land cover  - first soil layer
-        #         h1 = np.maximum(self.var.soildepth[1], self.var.maxRootDepth[i] - self.var.soildepth[0])
-        #         self.var.rootDepth[1][i] = np.minimum(self.var.soildepth12 - 0.05, h1)
-        #         # soil layer is minimim 0.05 m
-        #         self.var.rootDepth[2][i] = np.maximum(0.05, self.var.soildepth12 - self.var.rootDepth[1][i])
-        #     else:
-        #         self.var.rootDepth[1][i] = self.var.soildepth[1].copy()
-        #         self.var.rootDepth[2][i] = self.var.soildepth[2].copy()
-        #     i += 1
-                        
-        # self.var.MaxRootDepth = np.broadcast_to(
-        #     max_root_depth[None,None,:],
-        #     (1, 1, self.var.nCell))
-
-    def read_min_soil_depth_frac(self):
-        self.minSoilDepthFracNC = str(self.lc_configuration['minSoilDepthFracInputFile'])
-        self.minSoilDepthFracVarName = str(self.lc_configuration['minSoilDepthFracVariableName'])
-        min_soil_depth_frac = vos.netcdf2PCRobjCloneWithoutTime(
-            self.configuration['minSoilDepthFracInputFile'],
-            self.configuration['minSoilDepthFracVariableName'],
-            cloneMapFileName = self.var.cloneMap)
-        min_soil_depth_frac = min_soil_depth_frac[self.var.landmask].reshape(self.var.nLayer, self.var.nCell)
-        self.var.MinSoilDepthFrac = np.broadcast_to(
-            min_soil_depth_frac[None,None,:,:],
-            (self.var.nFarm, self.var.nLC, self.var.nLayer, self.var.nCell))
+    # def read_min_soil_depth_frac(self):
+    #     self.minSoilDepthFracNC = str(self.lc_configuration['minSoilDepthFracInputFile'])
+    #     self.minSoilDepthFracVarName = str(self.lc_configuration['minSoilDepthFracVariableName'])
+    #     min_soil_depth_frac = vos.netcdf2PCRobjCloneWithoutTime(
+    #         self.configuration['minSoilDepthFracInputFile'],
+    #         self.configuration['minSoilDepthFracVariableName'],
+    #         cloneMapFileName = self.var.cloneMap)
+    #     min_soil_depth_frac = min_soil_depth_frac[self.var.landmask].reshape(self.var.nLayer, self.var.nCell)
+    #     self.var.MinSoilDepthFrac = np.broadcast_to(
+    #         min_soil_depth_frac[None,None,:,:],
+    #         (self.var.nFarm, self.var.nLC, self.var.nLayer, self.var.nCell))
         
     def read_static_params(self):
         self.var.minInterceptCap = np.float(self.lc_configuration['minInterceptCap'])
@@ -177,51 +144,6 @@ class NaturalVegetationParameters(object):
         self.read_max_root_depth()
         self.read_root_fraction()
         # self.read_min_soil_depth_frac()
-
-    def compute_van_genuchten_coefficients(self):
-        # compute van Genuchten n, m coefficients
-        self.var.van_genuchten_n = self.var.van_genuchten_lambda + 1
-        self.var.van_genuchten_m = self.var.van_genuchten_lambda / self.var.van_genuchten_n
-        self.var.van_genuchten_inv_n = 1. / self.var.van_genuchten_n
-        self.var.van_genuchten_inv_m = 1. / self.var.van_genuchten_m
-        self.var.van_genuchten_inv_alpha = 1. / self.var.van_genuchten_alpha
-        
-    def root_zone_water(self):
-
-        self.compute_van_genuchten_coefficients()
-        # # compute van Genuchten n, m coefficients
-        # van_genuchten_n = self.var.van_genuchten_lambda + 1
-        # van_genuchten_m = self.var.van_genuchten_lambda / van_genuchten_n
-        # van_genuchten_inv_n = 1. / van_genuchten_n
-        # van_genuchten_inv_m = 1. / van_genuchten_m
-        # van_genuchten_inv_alpha = 1. / self.var.van_genuchten_alpha
-
-        # compute root zone water contents
-        self.var.wc_sat = self.var.th_s * self.var.root_depth
-        self.var.wc_res = self.var.th_res * self.var.root_depth
-        self.var.wc_range = self.var.wc_sat - self.var.wc_res
-
-        # *** TODO: check the following equations against literature ***
-
-        # soil moisture at field capacity (pF2, 100 cm) [mm water slice]
-        # Mualem equation (van Genuchten, 1980)
-        self.var.wc_fc = (
-            self.var.wc_res
-            + self.var.wc_range
-            / ((1 + (self.var.van_genuchten_alpha * 100) ** self.var.van_genuchten_n) ** self.var.van_genuchten_m))
-
-        # soil moisture at wilting point (pF4.2, 10**4.2 cm) [mm water slice]
-        # Mualem equation (van Genuchten, 1980)        
-        self.var.wc_wp = (
-            self.var.wc_res
-            + self.var.wc_range
-            / ((1 + (self.var.van_genuchten_alpha * (10 ** 4.2)) ** self.var.van_genuchten_n) ** self.var.van_genuchten_m))
-
-        # not sure where these are used???
-        sat_term_fc = np.maximum(0., self.var.wc_fc - self.var.wc_res) / self.var.wc_range
-        k_unsat_fc = self.var.ksat * np.sqrt(sat_term_fc) * np.square(1 - (1 - sat_term_fc ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
-        self.var.k_fc12 = np.sqrt(k_unsat_fc[...,0,:] * k_unsat_fc[...,1,:])
-        self.var.k_fc23 = np.sqrt(k_unsat_fc[...,1,:] * k_unsat_fc[...,2,:])
         
     def update_crop_coefficient(self):
         self.var.cropCoefficient = vos.netcdf2PCRobjClone(
@@ -239,10 +161,7 @@ class NaturalVegetationParameters(object):
             cloneMapFileName = self.var.cloneMap,
             LatitudeLongitude = True)[self.var.landmask]
 
-    def update_intercept_capacity(self):
-        
-        # TODO: this is only relevant for forest, grassland
-        
+    def update_intercept_capacity(self):        
         if self.interceptCapNC != "None":
             self.var.interception_capacity = vos.netcdf2PCRobjClone(
                 self.interceptCapNC.format(
@@ -309,11 +228,26 @@ class ManagedLandParameters(NaturalVegetationParameters):
             config_section_name)
         self.topo_parameters_module = TopoParametersManagedLand(
             LandCoverParameters_variable,
-            config_section_name)        
+            config_section_name)
+        self.irrigation_parameters_module = IrrigationParameters(
+            LandCoverParameters_variable,
+            config_section_name)
+        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(
+            LandCoverParameters_variable,
+            config_section_name)
 
     def initial(self):
-        pass
-
-    def dynamic(self):
-        pass
+        self.soil_parameters_module.initial()
+        self.topo_parameters_module.initial()
+        self.irrigation_parameters_module.initial()
+        self.field_mgmt_parameters_module.initial()
+        self.initialize_dynamic_params()
+        self.read_static_params()
+        self.soil_parameters_module.compute_soil_hydraulic_parameters()
         
+    def dynamic(self):
+        self.soil_parameters_module.dynamic()
+        self.topo_parameters_module.dynamic()
+        self.update_cover_fraction()
+        self.update_crop_coefficient()
+        # self.update_intercept_capacity()        

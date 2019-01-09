@@ -73,3 +73,6 @@ class InterceptionSealed(Interception):
         self.compute_interception_evaporation_from_sealed_land()
         self.update_interception_storage()
         self.update_actual_evapotranspiration()
+
+class InterceptionWater(InterceptionSealed):
+    pass

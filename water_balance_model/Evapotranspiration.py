@@ -56,19 +56,34 @@ class ActualEvapotranspiration(object):
         self.var.Tact = np.copy(arr_zeros)
         self.var.ETact = np.copy(arr_zeros)
         self.var.snow_evap = np.copy(arr_zeros)
+        # self.compute_critical_water_content()
 
-    def compute_root_zone_water(self):        
-        # Water content in each soil compartment, in mm
-        self.var.wc = 1000 * self.var.th * self.var.root_depth
+    # def compute_root_zone_water(self):        
+    #     # Water content in each soil compartment, in mm
+    #     self.var.wc = 1000 * self.var.th * self.var.root_depth
 
-    def compute_root_zone_depletion_factor(self):
-        # TODO: get root zone depletion factor, perhaps using
-        # crop group number method, if this can be clarified
-        # by Peter Burek @ IIASA
+    # # TODO: ideally the following two methods would be part of the
+    # # SoilParameters module, but compute_root_zone_depletion_factor
+    # # will eventually need ETpot (Evapotranspiration)
+    # def compute_root_zone_depletion_factor(self):
+    #     # TODO: get root zone depletion factor, perhaps using
+    #     # crop group number method, if this can be clarified
+    #     # by Peter Burek @ IIASA
 
-        # CWATM, soil.py, lines 185-206
-        self.var.root_zone_depletion_factor = np.ones((1, 1, self.var.nCell))  # FIXME
+    #     # NB this will be different for natural vegetation and
+    #     # irrigated crops
+        
+    #     # CWATM, soil.py, lines 185-206
+    #     self.var.root_zone_depletion_factor = np.ones((1, 1, self.var.nCell))  # FIXME
 
+    # def compute_critical_water_content(self):
+    #     # CWATM, soil.py, lines 210-212        
+    #     self.compute_root_zone_depletion_factor()
+    #     p = np.broadcast_to(
+    #         self.var.root_zone_depletion_factor[:,:,None,:],
+    #         (1, 1, self.var.nLayer, self.var.nCell))        
+    #     self.var.wc_crit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
+        
     def compute_open_water_evaporation(self):
         # CWATM, soil.py, lines 149-171
         # self.var.SurfaceStorage is currently updated in Infiltration.py
@@ -82,22 +97,22 @@ class ActualEvapotranspiration(object):
 
         # CWATM, soil.py, lines 210-251
         
-        # broadcast crop depletion factor to compartments
-        p = np.broadcast_to(
-            self.var.root_zone_depletion_factor[:,:,None,:],
-            (1, 1, self.var.nLayer, self.var.nCell))
+        # # broadcast crop depletion factor to compartments
+        # p = np.broadcast_to(
+        #     self.var.root_zone_depletion_factor[:,:,None,:],
+        #     (1, 1, self.var.nLayer, self.var.nCell))
         
-        # work out critical water content (mm)
+        # # work out critical water content (mm)
 
-        # CWATM, soil.py, lines 210-212        
-        wCrit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
+        # # CWATM, soil.py, lines 210-212        
+        # wCrit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
 
         # transpiration reduction factor, CWATM, soil.py, lines
         Ks = np.divide(
             (self.var.wc - self.var.wc_wp),
-            (wCrit - self.var.wc_wp),
+            (self.var.wc_crit - self.var.wc_wp),
             out=np.zeros_like(self.var.wc_wp),
-            where=wCrit>self.var.wc_wp)
+            where=self.var.wc_crit>self.var.wc_wp)
         Ks = np.maximum(np.minimum(1., Ks), 0.)
         Ks *= self.var.root_fraction
         Ks_sum = np.sum(Ks, axis=2)
@@ -133,8 +148,9 @@ class ActualEvapotranspiration(object):
             out=np.zeros_like(self.var.Eact))
 
     def dynamic(self):
-        self.compute_root_zone_water()
-        self.compute_root_zone_depletion_factor()
+        # self.compute_root_zone_water()
+        self.var.root_zone_water_module.update_root_zone_water_content()
+        self.var.root_zone_water_module.compute_critical_water_content()
         # self.compute_root_zone_water()
         self.compute_open_water_evaporation()  # TODO: is this is the right place? where is openWaterEvap computed in CWATM? SurfaceStorage not yet updated for current time step
         self.compute_actual_transpiration()

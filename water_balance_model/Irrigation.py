@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# AquaCrop crop growth model
-
 import numpy as np
 
 import hydro_model_builder.VirtualOS as vos
@@ -18,93 +16,70 @@ class Irrigation(object):
 
     def initial(self):
         arr_zeros = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        self.var.Irr = np.copy(arr_zeros)
-        self.var.IrrCum = np.copy(arr_zeros)
-        self.var.IrrNetCum = np.copy(arr_zeros)
+        self.var.irrigation = np.copy(arr_zeros)
+    #     self.var.irrigation_cumulative = np.copy(arr_zeros)
 
-    def reset_initial_conditions(self):
-        self.var.IrrCum[self.var.GrowingSeasonDayOne] = 0
-        self.var.IrrNetCum[self.var.GrowingSeasonDayOne] = 0
+    # def reset_initial_conditions(self):
+    #     self.var.irrigation_cumulative[self.var.GrowingSeasonDayOne] = 0
         
     def dynamic(self):
-        """Function to get irrigation depth for the current day"""
-        # reset initial conditions
-        if np.any(self.var.GrowingSeasonDayOne):
-            self.reset_initial_conditions()
+        pass
+
+class IrrigationNonPaddy(Irrigation):
+    pass
+
+class IrrigationPaddy(Irrigation):
+    def dynamic(self):
+
+        alpha_depletion = 1.    # see CWATM waterdemand.py, lines 129-131
+        self.var.irrigation = np.where(
+            self.var.cropCoefficient > 0.75,
+            np.maximum(
+                (alpha_depletion
+                 * self.var.zBund  # check units
+                 - (self.var.SurfaceStorage  # check units
+                    + self.var.water_available_for_infiltration)),  # check units
+                0.),
+            0.)
+
+        # CWATM: "ignore demand if less that 1m3" - but I thought irrigation was a depth?
+
+        self.var.irrigation_efficiency = 1.  # TODO - put in input
+        self.var.irrigation /= self.var.irrigation_efficiency
+
+
+class IrrigationNonPaddy(Irrigation):
+    def dynamic(self):
+
+        self.var.infiltration_module.compute_infiltration_capacity()
+
+        # compute total and readily available water in the top two soil layers
+        self.var.root_zone_water_module.compute_readily_available_water()
+        self.var.root_zone_water_module.compute_total_available_water()
+        self.var.root_zone_water_module.compute_critical_water_content()
+
+        layer_index = np.array([0,1], np.int64)
+        readily_available_water = np.sum(
+            self.var.readily_available_water[...,layer_index,:],
+            axis=2)
+        total_available_water = np.sum(
+            self.var.total_available_water[...,layer_index,:],
+            axis=2)
+        critical_available_water = np.sum(
+            self.var.wc_crit[...,layer_index,:],
+            axis=2)
         
-        SMT = np.concatenate((self.var.SMT1[None,:],
-                              self.var.SMT2[None,:],
-                              self.var.SMT3[None,:],
-                              self.var.SMT4[None,:]), axis=0)
+        alpha_depletion = 1.
+        self.var.irrigation = np.where(
+            self.var.cropCoefficient > 0.2,
+            np.where(
+                readily_available_water < (alpha_depletion * critical_available_water),
+                np.maximum(0., alpha_depletion * total_available_water),
+                0.),
+            0.)
+        self.var.irrigation.clip(None, self.var.potential_infiltration)
 
-        # Determine adjustment for inflows and outflows on current day
-        cond1 = (self.var.thRZ_Act > self.var.thRZ_Fc)
-        rootdepth = np.maximum(self.var.Zmin, self.var.Zroot)
-        AbvFc = ((self.var.thRZ_Act - self.var.thRZ_Fc) * 1000 * rootdepth)
-        AbvFc[np.logical_not(cond1)] = 0
-        WCadj = self.var.ETpot - self.var.precipitation + self.var.Runoff - AbvFc
+        # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - TODO
+
+        self.var.irrigation /= self.var.irrigation_efficiency
         
-        # Determine irrigation depth (mm/day) to be applied
-        cond2 = (self.var.GrowingSeasonIndex & (self.var.IrrMethod == 0))
-        self.var.Irr[cond2] = 0
-        
-        # If irrigation is based on soil moisture, get the soil moisture
-        # target for the current growth stage and determine threshold to
-        # initiate irrigation
-        cond3 = (self.var.GrowingSeasonIndex & np.logical_not(cond2) & (self.var.IrrMethod == 1))
-        I,J,K = np.ogrid[:self.var.nFarm,:self.var.nLC,:self.var.nCell]
-        # growth_stage_index = self.var.GrowthStage.astype(int) - 1
-        growth_stage_index = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell), dtype=np.int)  # TEMP
-        SMT = SMT[growth_stage_index,I,J,K]
-        IrrThr = np.round(((1 - SMT / 100) * self.var.TAW), 3)
-        
-        # If irrigation is based on a fixed interval, get number of days in
-        # growing season so far (subtract 1 so that we always irrigate first
-        # on day 1 of each growing season)
-        cond4 = (self.var.GrowingSeasonIndex & (self.var.IrrMethod == 2))
-        nDays = self.var.DAP - 1
-
-        # Working on a copy, adjust depletion for inflows and outflows - same
-        # for both soil moisture and interval based irrigation
-        cond5 = (cond3 | cond4)
-        Dr = np.copy(self.var.Dr)
-        Dr[cond5] += WCadj[cond5]
-        Dr[cond5] = np.clip(Dr, 0, None)[cond5]
-        cond6 = ((cond3 & (Dr > IrrThr)) | (cond4 & ((nDays % self.var.IrrInterval) == 0)))        
-        IrrReq = np.copy(Dr)
-        
-        EffAdj = ((100. - self.var.AppEff) + 100.) / 100.
-        IrrReq *= EffAdj
-
-        self.var.Irr[cond6] = np.clip(IrrReq, 0, self.var.MaxIrr)[cond6]
-        cond7 = (cond5 & np.logical_not(cond6))
-        self.var.Irr[cond7] = 0
-
-        # If irrigation is based on a pre-defined schedule then the irrigation
-        # requirement for each crop is read from a netCDF file. Note that if
-        # the option 'irrScheduleFileNC' is None, then nothing will be imported
-        # and the irrigation requirement will be zero
-        # FIXME!!!
-        cond8 = (self.var.GrowingSeasonIndex & (self.var.IrrMethod == 3))
-        if self.var.irrScheduleFileNC != None:            
-            IrrReq = vos.netcdf2PCRobjClone(
-                self.var.irrScheduleFileNC,
-                "irrigation_depth",
-                str(self.var._modelTime.fulldate), 
-                # str(self.var.currTimeStep.fulldate),
-                # useDoy = method_for_time_index,
-                # cloneMapFileName = self.var.cloneMap,
-                cloneMapAttributes = self.var.cloneMapAttributes)
-            IrrReq = IrrReq[self.var.landmask_crop].reshape(self.var.nLC,self.var.nCell)
-            self.var.Irr[cond8] = IrrReq[cond8]
-
-        # Note that if irrigation is based on net irrigation then it is
-        # performed after calculation of transpiration and hence is set to zero
-        # at this point (not strictly necessary because Irr is initialized to
-        # zero, but included for completeness)
-        cond9 = (self.var.GrowingSeasonIndex & (self.var.IrrMethod == 4))
-        self.var.Irr[cond9] = 0
-        self.var.Irr[np.logical_not(self.var.GrowingSeasonIndex)] = 0
-
-        self.var.IrrCum += self.var.Irr
-        self.var.IrrCum[np.logical_not(self.var.GrowingSeasonIndex)] = 0
