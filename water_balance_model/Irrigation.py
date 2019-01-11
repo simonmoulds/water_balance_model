@@ -46,6 +46,7 @@ class IrrigationPaddy(Irrigation):
 
         self.var.irrigation_efficiency = 1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency
+        self.var.water_available_for_infiltration += self.var.irrigation
 
 
 class IrrigationNonPaddy(Irrigation):
@@ -81,5 +82,6 @@ class IrrigationNonPaddy(Irrigation):
 
         # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - TODO
 
+        self.var.irrigation_efficiency = 1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency
-        
+        self.var.water_available_for_infiltration += self.var.irrigation

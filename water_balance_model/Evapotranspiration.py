@@ -11,7 +11,7 @@ class PotentialEvapotranspiration(object):
         self.var = PotentialEvapotranspiration_variable
 
     def initial(self):
-        arr_zeros = np.zeros((self.var.nLC, self.var.nCell))
+        arr_zeros = np.zeros((1, 1, self.var.nCell))
         self.var.Epot = np.copy(arr_zeros)
         self.var.Tpot = np.copy(arr_zeros)
         self.var.ETpot = np.copy(arr_zeros)
@@ -55,6 +55,7 @@ class ActualEvapotranspiration(object):
         self.var.Eact = np.copy(arr_zeros)
         self.var.Tact = np.copy(arr_zeros)
         self.var.ETact = np.copy(arr_zeros)
+        self.var.EWact = np.copy(arr_zeros)
         self.var.snow_evap = np.copy(arr_zeros)
         # self.compute_critical_water_content()
 
@@ -183,15 +184,10 @@ class EvaporationSealed(Evapotranspiration):
         self.var.EWact = np.minimum(
             mult * self.var.meteo.EWref,
             self.var.water_available_for_infiltration)
-    def compute_runoff(self):
-        self.var.Runoff = (
-            self.var.water_available_for_infiltration
-            - self.var.meteo.EWref)
     def update_actual_evapotranspiration(self):
         self.var.ETact += self.var.EWact        
     def dynamic(self):
         self.compute_open_water_evaporation(1.)
-        self.compute_runoff()
         self.update_actual_evapotranspiration()
         
 class EvaporationWater(EvaporationSealed):
@@ -201,5 +197,4 @@ class EvaporationWater(EvaporationSealed):
     """
     def dynamic(self):
         self.compute_open_water_evaporation(0.2)
-        self.compute_runoff()
         self.update_actual_evapotranspiration()

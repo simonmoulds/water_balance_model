@@ -15,7 +15,7 @@ class RainfallPartition(object):
         
     def initial(self):
         arr_zeros = np.zeros((self.var.nFarm,self.var.nLC, self.var.nCell))        
-        self.var.Runoff = np.copy(arr_zeros)
+        self.var.direct_runoff = np.copy(arr_zeros)
         self.var.Infl = np.copy(arr_zeros)
         
     def dynamic(self):
@@ -68,14 +68,14 @@ class RainfallPartition(object):
         term = (P - ((5. / 100) * S))
 
         cond12 = (cond1 & (term <= 0))
-        self.var.Runoff[cond12] = 0
+        self.var.direct_runoff[cond12] = 0
         self.var.Infl[cond12] = P[cond12]
 
         cond13 = (cond1 & np.logical_not(cond12))
-        self.var.Runoff[cond13] = ((term ** 2) / (P + (1 - (5. / 100)) * S))[cond13]
-        self.var.Infl[cond13] = (P - self.var.Runoff)[cond13]
+        self.var.direct_runoff[cond13] = ((term ** 2) / (P + (1 - (5. / 100)) * S))[cond13]
+        self.var.Infl[cond13] = (P - self.var.direct_runoff)[cond13]
 
         # If bunds are present then there is no runoff
         cond2 = np.logical_not(cond1)
-        self.var.Runoff[cond2] = 0
+        self.var.direct_runoff[cond2] = 0
         self.var.Infl[cond2] = P[cond2]

@@ -12,8 +12,10 @@ class Interception(object):
         self.var = Interception_variable
         
     def initial(self):
-        pass
-
+        self.var.interception_storage = np.zeros((1, 1, self.var.nCell))
+        self.var.water_available_for_infiltration = np.zeros((1, 1, self.var.nCell))        
+        self.var.interception_evaporation = np.zeros((1, 1, self.var.nCell))
+        
     def compute_water_available_for_infiltration(self):
         # CWATM, interception.py
         

@@ -17,6 +17,7 @@ class CapillaryRise(object):
         
     def initial(self):
         self.var.capillary_rise_frac = np.zeros((1, 1, self.var.nCell))
+        self.var.capillary_rise_from_gw = np.zeros((1, 1, self.var.nCell))
 
     def compute_capillary_rise_frac(self):        
         zGW = np.broadcast_to(self.var.groundwater.zGW[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))

@@ -32,7 +32,7 @@ class Configuration(object):
         self.debug_mode = debug_mode
         self.parse_configuration_file(self.iniFileName)
         if no_modification: self.set_configuration(system_arguments)
-        self.main_output_directory = self.globalOptions['outputDir']
+        self.main_output_directory = self.FILE_PATHS['PathOut']
 
     def set_configuration(self, system_arguments = None):
 
@@ -235,31 +235,31 @@ class Configuration(object):
         cleanOutputDir = False
         if cleanOutputDir:
             try:
-                shutil.rmtree(self.globalOptions['outputDir'])
+                shutil.rmtree(self.FILE_PATHS['PathOut'])
             except:
                 pass
 
         try:
-            os.makedirs(self.globalOptions['outputDir'])
+            os.makedirs(self.FILE_PATHS['PathOut'])
         except:
             pass
 
         # make temp directory
-        self.tmpDir = vos.getFullPath("tmp/", self.globalOptions['outputDir'])
+        self.tmpDir = vos.getFullPath("tmp/", self.FILE_PATHS['PathOut'])
 
         if os.path.exists(self.tmpDir):
             shutil.rmtree(self.tmpDir)
         os.makedirs(self.tmpDir)
 
         # make netcdf directory
-        self.outNCDir = vos.getFullPath("netcdf/", self.globalOptions['outputDir'])
+        self.outNCDir = vos.getFullPath("netcdf/", self.FILE_PATHS['PathOut'])
         
         if os.path.exists(self.outNCDir):
             shutil.rmtree(self.outNCDir)
         os.makedirs(self.outNCDir)
 
         # make and populate backup directory for Python scripts
-        self.scriptDir = vos.getFullPath("scripts/", self.globalOptions['outputDir'])
+        self.scriptDir = vos.getFullPath("scripts/", self.FILE_PATHS['PathOut'])
 
         if os.path.exists(self.scriptDir):
             shutil.rmtree(self.scriptDir)
@@ -274,7 +274,7 @@ class Configuration(object):
             shutil.copy(filename, self.scriptDir)
 
         # make log directory
-        self.logFileDir = vos.getFullPath("log/", self.globalOptions['outputDir'])
+        self.logFileDir = vos.getFullPath("log/", self.FILE_PATHS['PathOut'])
 
         cleanLogDir = True
         if os.path.exists(self.logFileDir) and cleanLogDir:
@@ -282,7 +282,7 @@ class Configuration(object):
         os.makedirs(self.logFileDir)
 
         # make end state directory
-        self.endStateDir = vos.getFullPath("states/", self.globalOptions['outputDir'])
+        self.endStateDir = vos.getFullPath("states/", self.FILE_PATHS['PathOut'])
 
         if os.path.exists(self.endStateDir):
             shutil.rmtree(self.endStateDir)

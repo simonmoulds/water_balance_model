@@ -45,12 +45,12 @@ class Reporting(object):
         # #############################        
         self.outDailyTotNC = ["None"]
         try:
-            self.outDailyTotNC = list(set(self.configuration.reportingOptions['outDailyTotNC'].split(",")))
+            self.outDailyTotNC = list(set([str(var.strip()) for var in self.configuration.reportingOptions['outDailyTotNC'].split(",")]))
         except:
             pass
         
         if self.outDailyTotNC[0] != "None":
-            for var in self.outDailyTotNC:                
+            for var in self.outDailyTotNC:
                 logger.info("Creating the netcdf file for reporting the daily value of variable %s.", str(var))
                 self.create_netcdf_file(var, self.run_id + "_dailyTot_output")
 

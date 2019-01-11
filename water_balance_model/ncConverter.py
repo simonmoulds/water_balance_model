@@ -107,6 +107,8 @@ class np2netCDF(object):
         if isTimeDim:
             self.add_dimension_time(netcdf, dimname, None)
         else:
+            print dimname
+            print dimvar
             self.add_dimension_not_time(netcdf, dimname, dimvar)
     
     def add_variable(self, netcdf, varname, **kwargs):
@@ -145,15 +147,14 @@ class np2netCDF(object):
         """Function to create netCDF file"""
         # FIXME: make dimensions a required arg
         netcdf = nc.Dataset(ncFileName, 'w', format=self.format)
-
         if dimensions is None:
             dimensions = self.get_variable_dimensions(varname)
         for dim in dimensions:
             self.add_dimension(netcdf, dim, self.model_dimensions[dim])
 
-        if isinstance(varname, str):
+        if isinstance(varname, basestring):
             varname = [varname]
-            
+
         for item in varname:
             self.add_variable(netcdf, item, zlib=self.zlib, fill_value=vos.MV)
             
@@ -198,6 +199,8 @@ class np2netCDF(object):
             varField = np.flip(varField, axis=-2)
                 
         time_axis = [i for i in range(len(var_dims)) if var_dims[i] == time_dimname][0]
+        
+        # What does this do?
         slc = [slice(None)] * len(var_dims)
         slc[time_axis] = posCnt
         netcdf.variables[shortVarName][slc] = varField

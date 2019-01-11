@@ -18,7 +18,7 @@ from Drainage import Drainage
 from Interception import *
 from Irrigation import *
 from RainfallPartition import RainfallPartition
-from Infiltration import Infiltration
+from Infiltration import *
 from CapillaryRise import CapillaryRise
 from Evapotranspiration import *
 
@@ -144,7 +144,7 @@ class SealedLand(LandCover):
         self.snow_frost_module = SnowFrost(self)
         self.interception_module = InterceptionSealed(self)
         self.evapotranspiration_module = EvaporationSealed(self)
-        self.infiltration_module = Infiltration(self)
+        self.infiltration_module = InfiltrationSealed(self)
         self.capillary_rise_module = CapillaryRise(self)
         self.drainage_module = Drainage(self)
 
@@ -154,8 +154,6 @@ class SealedLand(LandCover):
         self.snow_frost_module.initial()
         self.interception_module.initial()
         self.evapotranspiration_module.initial()
-
-        # still initialize these modules, so that variables are initialized to zero
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
         self.drainage_module.initial()
@@ -166,18 +164,22 @@ class SealedLand(LandCover):
         self.snow_frost_module.dynamic()
         self.interception_module.dynamic()
         self.evapotranspiration_module.dynamic()
+        self.infiltration_module.dynamic()
 
 class OpenWater(LandCover):
     def __init__(self, var, config_section_name):
         super(OpenWater, self).__init__(
             var,
-            config_section_name)
-        
-        self.lc_parameters_module = SealedLandParameters(self, config_section_name)
+            config_section_name)        
+        self.lc_parameters_module = WaterParameters(self, config_section_name)
         self.initial_condition_module = InitialConditionSealedLand(self)
         self.snow_frost_module = SnowFrost(self)
         self.interception_module = InterceptionWater(self)
         self.evapotranspiration_module = EvaporationWater(self)
+        self.infiltration_module = InfiltrationWater(self)
+        # include these modules so that some variables are initialized to zero
+        self.capillary_rise_module = CapillaryRise(self)  
+        self.drainage_module = Drainage(self)
 
     def initial(self):
         self.lc_parameters_module.initial()
@@ -185,6 +187,9 @@ class OpenWater(LandCover):
         self.snow_frost_module.initial()
         self.interception_module.initial()
         self.evapotranspiration_module.initial()
+        self.infiltration_module.initial()
+        self.capillary_rise_module.initial()
+        self.drainage_module.initial()
         
     def dynamic(self):
         self.lc_parameters_module.dynamic()
@@ -192,6 +197,7 @@ class OpenWater(LandCover):
         self.snow_frost_module.dynamic()
         self.interception_module.dynamic()
         self.evapotranspiration_module.dynamic()
+        self.infiltration_module.dynamic()
         
 class Forest(NaturalVegetation):
     """Class to represent forest land cover"""

@@ -36,12 +36,10 @@ class WaterBalanceModel(Model):
         latitudes = np.unique(pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), vos.MV))[::-1]
         longitudes = np.unique(pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), vos.MV))
         self.dimensions = {
+            'time'     : None,
+            'depth'    : np.arange(3), # TODO - put nComp in config section [SOIL]
             'lat'      : latitudes,
             'lon'      : longitudes,
-            'time'     : None,
-            'depth'    : 10, #np.arange(self.nComp), # TODO - put nComp in config section [SOIL]
-            'crop'     : 6, #np.arange(self.nLC),
-            'farm'     : 1, #np.arange(self.nFarm)
         }
         
     def dynamic(self):

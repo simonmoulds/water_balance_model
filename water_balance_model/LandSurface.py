@@ -12,8 +12,6 @@ from LandCover import *
 class LandSurface(object):
     def __init__(self, LandSurface_variable):
         self.var = LandSurface_variable
-        # self.var.dynamicLandCover
-        # self.var.FixedLandCoverYear
         self.land_cover_modules = {
             'forest'      : Forest(LandSurface_variable, 'forest'),
             'grassland'   : Grassland(LandSurface_variable, 'grassland'),
@@ -23,83 +21,116 @@ class LandSurface(object):
             'water'       : Water(LandSurface_variable, 'water')
             }
         
-        # self.forest_module = Forest(LandSurface_variable, 'forest')
-        # self.grassland_module = Grassland(LandSurface_variable, 'grassland')
-        # self.irrPaddy_module = IrrPaddy(LandSurface_variable, 'irrPaddy')
-        # self.irrNonPaddy_module = IrrNonPaddy(LandSurface_variable, 'irrNonPaddy')
-        # self.sealed_module = Sealed(LandSurface_variable, 'sealed')
-        # self.water_module = Water(LandSurface_variable, 'water')
+        self.land_cover_module_names = self.land_cover_modules.keys()
+        self.land_cover_module_names_with_soil = [
+            'forest','grassland','irrPaddy','irrNonPaddy'
+        ]
+        
+        self.force_cover_fraction_sum_to_equal_one = bool(int(self.var._configuration.LANDCOVER['forceCoverFractionSumToEqualOne']))
+        self.grid_cell_area = 1.  # TODO: change to netCDF
         
     def initial(self):
-        # self.forest_module.initial()
-        # self.grassland_module.initial()
-        # self.irrPaddy_module.initial()
-        # self.irrNonPaddy_module.initial()
-        # self.sealed_module.initial()
-        # self.water_module.initial()
         for module in self.land_cover_modules.keys():
             self.land_cover_modules[module].initial()
-        self.correct_cover_fraction()
+
+        self.initialize_cover_fraction()
+        self.initialize_land_cover_variables_to_aggregate()
         self.aggregate_land_cover_variables()
+
+    def initialize_cover_fraction(self):
+        self.cover_fraction = {
+            module : np.zeros((self.var.nCell)) for module in self.land_cover_module_names
+        }        
+        self.total_cover_fraction = np.zeros((self.var.nCell))
+        self.update_cover_fraction()
+
+    def update_cover_fraction(self):
+        for index,module in enumerate(self.land_cover_module_names):
+            self.cover_fraction[module] = getattr(
+                self.land_cover_modules[module],
+                'coverFraction')
+        self.total_cover_fraction = np.sum(
+            self.cover_fraction.values(),
+            axis=0)
+        self.correct_cover_fraction()
         
     def correct_cover_fraction(self):
         """Function to correct cover fraction, such that in 
         each grid square the various land cover fractions sum 
         to one
         """
-        cover_fraction = []
-        for module in self.land_cover_modules.keys():
-            cover_fraction.append(getattr(self.land_cover_modules[module_name], 'coverFraction'))
-        cover_fraction = np.stack(cover_fraction, axis=0)
-        
-        # TODO: put in configuration, LANDCOVER
-        allow_cover_fraction_sum_less_than_one = False
-        force_cover_fraction_sum_to_equal_one = True
-        if allow_cover_fraction_sum_less_than_one or force_cover_fraction_sum_to_equal_one:
-            cover_fraction_sum = np.sum(cover_fraction, axis=0)
+        if self.force_cover_fraction_sum_to_equal_one:
+            for index,module in enumerate(self.land_cover_module_names):
+                vars(self.land_cover_modules[module])['coverFraction'] /= self.total_cover_fraction
+                self.cover_fraction[module] /= self.total_cover_fraction
+        self.total_cover_fraction = np.sum(
+            self.cover_fraction.values(),
+            axis=0)
+        self.total_cover_fraction_soil = np.sum(
+            [self.cover_fraction[key] for key in self.land_cover_module_names_with_soil],
+            axis=0)
 
-        # TODO
+    def initialize_land_cover_variables_to_aggregate(self):
+        self.variables_to_aggregate = [
+            'interception_storage','interflow',
+            'direct_runoff','infiltration',
+            'capillary_rise_from_gw','deep_percolation',
+            'preferential_flow','ETpot','ETact','EWact',
+            'Eact','Tact',
+            'water_available_for_infiltration',
+            'interception_evaporation'
+            ]
+        
+        self.soil_variables_to_aggregate = [
+            'th','wc'
+            ]
+        
+        self.variables_to_aggregate_by_averaging = [
+            'th','wc'
+            ]
+        
+        self.aggregate_land_cover_variables()
 
     def aggregate_land_cover_variables(self):
         """Function to aggregate values computed separately 
         for each land cover
         """
-        # TODO: put these in initial method
-        # Perhaps initialize variables by checking the dimension in the land cover class
-        self.natural_vegetation_module_names = ['forest_module','grassland_module']
-        self.managed_land_module_names = ['irrPaddy_module','irrNonPaddy_module']
-        self.vegetation_module_names = (
-            self.natural_vegetation_module_names +
-            self.managed_land_module_names)
-        self.sealed_land_module_names = ['sealed_module']
-        self.open_water_module_names = ['water_module']
-        self.module_names = (
-            self.natural_vegetation_module_names
-            + self.managed_land_module_names
-            + self.sealed_land_module_names
-            + self.open_water_module_names)
-        variables_to_sum = ['ETact']
-        variables_to_average = ['th']
+        self.aggregate_variables_for_all_land_covers()
+        self.aggregate_variables_for_land_covers_with_soil()
+        print self.var.th.shape
         
-        for var_name in variables_to_sum:
-            data = []
-            for module_name in self.land_cover_modules.keys():
-                attr = getattr(self.land_cover_modules[module_name], var_name)
-                # attr *= land_cover_area[module_name]
-                data.append(attr)
+    def aggregate_variables_for_all_land_covers(self):
+        for var_name in self.variables_to_aggregate:
+            var = self.aggregate_single_land_cover_variable(
+                var_name,
+                self.land_cover_module_names,
+                self.grid_cell_area * self.total_cover_fraction
+            )
+            vars(self.var)[var_name] = var.copy()  # remove farm, crop dimension
+            
+    def aggregate_variables_for_land_covers_with_soil(self):
+        for var_name in self.soil_variables_to_aggregate:
+            var = self.aggregate_single_land_cover_variable(
+                var_name,
+                self.land_cover_module_names_with_soil,
+                self.grid_cell_area * self.total_cover_fraction_soil
+                )            
+            vars(self.var)[var_name] = var.copy()
+
+    def aggregate_single_land_cover_variable(self, var_name, module_names, total_cover_fraction):
+        var_list = []
+        for module in module_names:
+            attr = getattr(self.land_cover_modules[module], var_name)
+            attr *= (self.cover_fraction[module] * self.grid_cell_area)
+            var_list.append(attr)
+        var = np.sum(var_list, axis=0)
+        if var_name in self.variables_to_aggregate_by_averaging:
+            var /= self.grid_cell_area * total_cover_fraction
+        return var
                 
-            # TODO: test performance
-            vars(self)[var_name] = np.sum(data, axis=0)  
-        
     def dynamic(self):
-        self.correct_cover_fraction()
-        self.aggregate_land_cover_variables()        
-        for module in self.land_cover_modules.keys():
+        for module in self.land_cover_module_names:
             self.land_cover_modules[module].dynamic()
+        self.correct_cover_fraction()
+        self.aggregate_land_cover_variables()
         
-        # self.forest_module.dynamic()
-        # self.grassland_module.dynamic()
-        # self.irrPaddy_module.dynamic()
-        # self.irrNonPaddy_module.dynamic()
-        # self.sealed_module.dynamic()
-        # self.water_module.dynamic()    
