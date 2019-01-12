@@ -11,15 +11,14 @@ import subprocess
 import netCDF4 as nc
 import numpy as np
 import pcraster as pcr
-import hydro_model_builder.VirtualOS as vos
-# import variable_list as VarDict
+import VirtualOS as vos
 
+# declare a global variable to hold valid names of time dimension
 valid_time_dimnames = ['time']
 
-class np2netCDF(object):
+class OutputNetCDF(object):
     
     def __init__(self, configuration, model_dimensions, variable_list, specificAttributeDictionary=None):
-        # self._model = model
         self.model_dimensions = model_dimensions
         self.variable_list = variable_list
         self.set_netcdf_y_orientation(configuration)
@@ -32,19 +31,19 @@ class np2netCDF(object):
         if 'formatNetCDF' in configuration.reportingOptions.keys():
             self.format = str(configuration.reportingOptions['formatNetCDF'])
         if 'zlib' in configuration.reportingOptions.keys():
-            if configuration.reportingOptions['zlib'] == "True": self.zlib = True
+            if configuration.reportingOptions['zlib'] == "True":
+                self.zlib = True
         
     def set_netcdf_y_orientation(self, configuration):        
         self.netcdf_y_orientation_follow_cf_convention = False
-        if 'netcdf_y_orientation_follow_cf_convention' in configuration.reportingOptions.keys() and\
-            configuration.reportingOptions['netcdf_y_orientation_follow_cf_convention'] == "True":
-            msg = "Latitude (y) orientation for output netcdf files start from the bottom to top."
-            self.netcdf_y_orientation_follow_cf_convention = True        
+        if 'netcdf_y_orientation_follow_cf_convention' in configuration.reportingOptions.keys():
+            if configuration.reportingOptions['netcdf_y_orientation_follow_cf_convention'] == "True":
+                msg = "Latitude (y) orientation for output netcdf files start from the bottom to top."
+                self.netcdf_y_orientation_follow_cf_convention = True        
 
     def set_general_netcdf_attributes(self,configuration,specificAttributeDictionary=None):
         """Function to set general netCDF attributes"""
         
-        # netCDF attributes (based on the configuration file or specificAttributeDictionary):
         self.attributeDictionary = {}
         if specificAttributeDictionary == None:
             self.attributeDictionary['institution'] = configuration.globalOptions['institution']
@@ -56,6 +55,7 @@ class np2netCDF(object):
             self.attributeDictionary['description'] = specificAttributeDictionary['description']
         
     def add_dimension_time(self, netcdf, dimname, dimvar):
+        """Function to add a time dimension to a netCDF file"""
         shortname = self.variable_list.netcdf_short_name[dimname]
         try:
             datatype = self.variable_list.netcdf_datatype[dimname]
@@ -74,6 +74,9 @@ class np2netCDF(object):
         var.calendar = self.variable_list.netcdf_calendar[dimname]
 
     def add_dimension_not_time(self, netcdf, dimname, dimvar):
+        """Function to add a dimension (not time) to a netCDF 
+        file
+        """
         ndim = len(dimvar)
         shortname = self.variable_list.netcdf_short_name[dimname]
         try:
@@ -87,11 +90,20 @@ class np2netCDF(object):
         else:
             keyword_args = {'zlib' : self.zlib}
 
+        # if dimension is latitude, check whether the netCDF
+        # should follow the CF convention and order latitudes
+        # from high -> low (e.g. 60N -> 60S). If not, reverse
+        # dimension variable because the model stores the
+        # latitude dimension from high -> low.
         if standard_name in ['latitude']:
             if not self.netcdf_y_orientation_follow_cf_convention:
-                dimvar = dimvar[::-1]
-        
+                if (dimvar[0] - dimvar[1]) > 0:
+                    dimvar = dimvar[::-1]
+
+        # create the dimension
         netcdf.createDimension(shortname, ndim)
+
+        # create the variable to store dimension values
         var = netcdf.createVariable(
             shortname,
             datatype,
@@ -107,8 +119,6 @@ class np2netCDF(object):
         if isTimeDim:
             self.add_dimension_time(netcdf, dimname, None)
         else:
-            print dimname
-            print dimvar
             self.add_dimension_not_time(netcdf, dimname, dimvar)
     
     def add_variable(self, netcdf, varname, **kwargs):
@@ -129,18 +139,23 @@ class np2netCDF(object):
         var.units = self.variable_list.netcdf_unit[varname]        
 
     def repair_variable_dict(self, varname):
-        # TODO: complete this function
+        """Function to fill in missing values in variable dictionary"""
         if self.variable_list.netcdf_long_name[varname] is None:
             self.variable_list.netcdf_long_name[varname] = self.variable_list.netcdf_short_name[varname]
 
     def get_variable_dimensions(self, varname):
-        try:
+        """Function to get the dimensions of a variable. If 
+        'varname' is a list then the function will attempt to 
+        retrieve all unique dimensions. In either case the
+        dimensions will be returned as a tuple.
+        """
+        if isinstance(varname, basestring):
             var_dims = self.variable_list.netcdf_dimensions[varname]
-        except:
+        elif isinstance(varname, list):
             var_dims = []
             for item in varname:
                 var_dims += list(self.variable_list.netcdf_dimensions[item])
-            var_dims = tuple(set(var_dims))
+            var_dims = tuple(set(var_dims))            
         return var_dims
             
     def create_netCDF(self, ncFileName, varname, dimensions=None):
@@ -165,21 +180,26 @@ class np2netCDF(object):
         netcdf.sync()
         netcdf.close()
         
-    def data2NetCDF(self, ncFileName, varname, varField, timeStamp=None, posCnt=None):
-        """Function to write data to netCDF"""
+    def add_data_to_netcdf(self, ncFileName, varname, varField, timeStamp=None, posCnt=None):
+        """Function to write data to netCDF. If first opens 
+        the netCDF file specified by 'ncFileName', identifies 
+        the variable name and dimensions corresponding to 
+        'varname', and adds the data using the appropriate 
+        method depending on whether the variable is 
+        time-varying or not.
+        """
         netcdf = nc.Dataset(ncFileName, 'a')
         short_name = self.variable_list.netcdf_short_name[varname]
         dims = self.variable_list.netcdf_dimensions[varname]
         has_time_dim = any([dim in valid_time_dimnames for dim in dims])
         if has_time_dim:
-            self.data2NetCDFWithTime(netcdf, short_name, dims, varField, timeStamp, posCnt)
+            self.add_data_to_netcdf_with_time(netcdf, short_name, dims, varField, timeStamp, posCnt)
         else:
-            self.data2NetCDFWithoutTime(netcdf, short_name, dims, varField)            
-            # self.data2NetCDFWithoutTime(netcdf, short_name, dims, varField)            
+            self.add_data_to_netcdf_without_time(netcdf, short_name, dims, varField)            
         netcdf.sync()
         netcdf.close()
         
-    def data2NetCDFWithTime(self, netcdf, shortVarName, var_dims, varField, timeStamp=None, posCnt=None):
+    def add_data_to_netcdf_with_time(self, netcdf, shortVarName, var_dims, varField, timeStamp=None, posCnt=None):
         time_dimname = [dim for dim in var_dims if dim in valid_time_dimnames][0]
         date_time = netcdf.variables[time_dimname]
         if posCnt is None:
@@ -190,27 +210,23 @@ class np2netCDF(object):
             date_time.units,
             date_time.calendar)
 
-        # The CF convention is for latitudes to go from high to low
-        # (which corresponds with numpy). Hence if the config specifies
-        # NOT to follow CF convention then we must flip the latitude
-        # dimension such that latitudes go from low to high.
+        # The CF convention is for latitudes to go from high
+        # to low (which corresponds with numpy). Hence if the
+        # config specifies NOT to follow CF convention then
+        # we must flip the latitude dimension of the variable
+        # such that latitudes go from low to high.
         if not self.netcdf_y_orientation_follow_cf_convention:
-            lat_axis = [index for index,dim in enumerate(var_dims) if dim == 'lat']
             varField = np.flip(varField, axis=-2)
-                
-        time_axis = [i for i in range(len(var_dims)) if var_dims[i] == time_dimname][0]
         
-        # What does this do?
+        time_axis = [i for i in range(len(var_dims)) if var_dims[i] == time_dimname][0]
         slc = [slice(None)] * len(var_dims)
         slc[time_axis] = posCnt
         netcdf.variables[shortVarName][slc] = varField
     
-    def data2NetCDFWithoutTime(self, netcdf, shortVarName, var_dims, varField):
+    def add_data_to_netcdf_without_time(self, netcdf, shortVarName, var_dims, varField):
         """Function to write data to netCDF without a time dimension"""
         if not self.netcdf_y_orientation_follow_cf_convention:
-            lat_axis = [index for index,dim in enumerate(var_dims) if dim == 'lat']
-            if len(lat_axis) == 1:
-                varField = np.flip(varField, axis=-2)
+            varField = np.flip(varField, axis=-2)
         netcdf.variables[shortVarName][:] = varField           
         
     def close(self, ncFileName):

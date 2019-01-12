@@ -3,7 +3,7 @@
 
 import numpy as np
 
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 
 import logging
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class IrrigationNonPaddy(Irrigation):
                 np.maximum(0., alpha_depletion * total_available_water),
                 0.),
             0.)
-        self.var.irrigation.clip(None, self.var.potential_infiltration)
+        self.var.irrigation = self.var.irrigation.clip(None, self.var.potential_infiltration)
 
         # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - TODO
 

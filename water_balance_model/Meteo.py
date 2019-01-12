@@ -7,8 +7,8 @@ import os
 import string
 import numpy as np
 import hydro_model_builder.Messages
-import hydro_model_builder.VirtualOS as vos
-# from ncConverter import *
+import VirtualOS as vos
+# from OutputNetCDF import *
 # import ETPFunctions as refPotET
 
 import logging
@@ -117,7 +117,8 @@ class Meteo(object):
             self.etrefFactor = np.float64(self._configuration.METEO['refETPotFactor'])
         
     def adjust_precipitation_input_data(self):
-        self.precipitation = self.preConst + self.preFactor * self.precipitation[self.landmask]
+        # TODO: proper unit conversion
+        self.precipitation = self.preConst + self.preFactor * self.precipitation * 0.001  # mm -> m
         self.precipitation = np.maximum(0.0, self.precipitation)
         self.precipitation[np.isnan(self.precipitation)] = 0.0
         self.precipitation = np.floor(self.precipitation * 100000.)/100000.
@@ -134,7 +135,7 @@ class Meteo(object):
             useDoy = method_for_time_index,
             cloneMapAttributes = self.cloneMapAttributes,
             cloneMapFileName = self.cloneMap,
-            LatitudeLongitude = True)
+            LatitudeLongitude = True)[self.landmask][None,None,:]
         self.adjust_precipitation_input_data()
 
     def adjust_temperature_data(self):
@@ -157,7 +158,7 @@ class Meteo(object):
             useDoy = method_for_time_index,
             cloneMapAttributes = self.cloneMapAttributes,
             cloneMapFileName = self.cloneMap,
-            LatitudeLongitude = True)[self.landmask]
+            LatitudeLongitude = True)[self.landmask][None,None,:]
 
         self.tmax = vos.netcdf2PCRobjClone(
             self.maxDailyTemperatureNC.format(
@@ -169,7 +170,7 @@ class Meteo(object):
             useDoy = method_for_time_index,
             cloneMapAttributes = self.cloneMapAttributes,
             cloneMapFileName = self.cloneMap,
-            LatitudeLongitude = True)[self.landmask]
+            LatitudeLongitude = True)[self.landmask][None,None,:]
 
         self.tavg = vos.netcdf2PCRobjClone(
             self.avgDailyTemperatureNC.format(
@@ -181,12 +182,13 @@ class Meteo(object):
             useDoy = method_for_time_index,
             cloneMapAttributes = self.cloneMapAttributes,
             cloneMapFileName = self.cloneMap,
-            LatitudeLongitude = True)[self.landmask]
+            LatitudeLongitude = True)[self.landmask][None,None,:]
         
         self.adjust_temperature_data()
 
     def adjust_reference_ET_data(self):
-        self.referencePotET = self.etrefConst + self.etrefFactor * self.referencePotET[self.landmask]
+        # TODO: unit conversion
+        self.referencePotET = self.etrefConst + self.etrefFactor * self.referencePotET * 0.001  # mm -> m
 
     def read_reference_ET_data(self):
         method_for_time_index = None
@@ -200,7 +202,7 @@ class Meteo(object):
             useDoy = method_for_time_index,
             cloneMapAttributes = self.cloneMapAttributes,
             cloneMapFileName=self.cloneMap,
-            LatitudeLongitude = True)
+            LatitudeLongitude = True)[self.landmask][None,None,:]
         self.adjust_reference_ET_data()
 
     def read_reference_EW_data(self):

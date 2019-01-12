@@ -3,7 +3,7 @@
 
 import os
 import numpy as np
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import netCDF4 as nc
 import datetime as datetime
 
@@ -81,20 +81,23 @@ class CropCoefficient(BaseClass):
         self.update_crop_coefficient()
         
     def update_crop_coefficient(self):
-        self.var.cropCoefficient = vos.netcdf2PCRobjClone(
-            self.cropCoefficientNC.format(
-                day=self.var._modelTime.currTime.day,
-                month=self.var._modelTime.currTime.month,
-                year=self.var._modelTime.currTime.year),
-            self.cropCoefficientVarName,
-            datetime.datetime(
-                2000,
-                self.var._modelTime.currTime.month,
-                self.var._modelTime.currTime.day),
-            # useDoy = method_for_time_index,
-            # cloneMapAttributes = self.cloneMapAttributes,
-            cloneMapFileName = self.var.cloneMap,
-            LatitudeLongitude = True)[self.var.landmask]
+        
+        start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
+        if start_of_model_run or (self.var._modelTime.day in [1,11,21]):
+            self.var.cropCoefficient = vos.netcdf2PCRobjClone(
+                self.cropCoefficientNC.format(
+                    day=self.var._modelTime.currTime.day,
+                    month=self.var._modelTime.currTime.month,
+                    year=self.var._modelTime.currTime.year),
+                self.cropCoefficientVarName,
+                datetime.datetime(
+                    2000,
+                    self.var._modelTime.currTime.month,
+                    self.var._modelTime.currTime.day),
+                # useDoy = method_for_time_index,
+                # cloneMapAttributes = self.cloneMapAttributes,
+                cloneMapFileName = self.var.cloneMap,
+                LatitudeLongitude = True)[self.var.landmask]
         
     def dynamic(self):
         self.update_crop_coefficient()
@@ -119,21 +122,23 @@ class InterceptionCapacity(MinimumInterceptionCapacity):
         
     def update_intercept_capacity(self):        
         if self.interceptCapNC != "None":
-            self.var.interception_capacity = vos.netcdf2PCRobjClone(
-                self.interceptCapNC.format(
-                    day=self.var._modelTime.currTime.day,
-                    month=self.var._modelTime.currTime.month,
-                    year=self.var._modelTime.currTime.year),
-                self.interceptCapVarName,
-                datetime.datetime(
-                    2000,
-                    self.var._modelTime.currTime.month,
-                    self.var._modelTime.currTime.day),
-                # useDoy = method_for_time_index,
-                # cloneMapAttributes = self.cloneMapAttributes,
-                cloneMapFileName = self.var.cloneMap,
-                LatitudeLongitude = True)[self.var.landmask]
-        self.var.interception_capacity.clip(self.var.minInterceptCap, None)
+            start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
+            if start_of_model_run or (self.var._modelTime.day in [1,11,21]):
+                self.var.interception_capacity = vos.netcdf2PCRobjClone(
+                    self.interceptCapNC.format(
+                        day=self.var._modelTime.currTime.day,
+                        month=self.var._modelTime.currTime.month,
+                        year=self.var._modelTime.currTime.year),
+                    self.interceptCapVarName,
+                    datetime.datetime(
+                        2000,
+                        self.var._modelTime.currTime.month,
+                        self.var._modelTime.currTime.day),
+                    # useDoy = method_for_time_index,
+                    # cloneMapAttributes = self.cloneMapAttributes,
+                    cloneMapFileName = self.var.cloneMap,
+                    LatitudeLongitude = True)[self.var.landmask]
+        self.var.interception_capacity = self.var.interception_capacity.clip(self.var.minInterceptCap, None)
         
     def dynamic(self):
         self.update_intercept_capacity()

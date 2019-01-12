@@ -6,7 +6,7 @@
 import os
 import numpy as np
 import pcraster as pcr
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import netCDF4 as nc
 import datetime as datetime
 import calendar as calendar

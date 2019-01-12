@@ -9,7 +9,7 @@ from configparser import ConfigParser, ExtendedInterpolation
 import os
 import sys
 import string
-from hydro_model_builder import VirtualOS as vos
+import VirtualOS as vos
 import time
 import datetime
 import shutil

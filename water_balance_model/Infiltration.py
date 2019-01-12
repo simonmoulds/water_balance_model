@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# AquaCrop crop growth model
-
 import numpy as np
 
 import logging
@@ -29,13 +27,13 @@ class Infiltration(object):
         soil_water_storage_capacity = self.var.wc_sat[...,0,:] + self.var.wc_sat[...,1,:]
         self.var.relative_saturation = soil_water_storage / soil_water_storage_capacity
         saturated_area_fraction = 1. - (1. - self.var.relative_saturation) ** self.var.arno_beta
-        saturated_area_fraction.clip(0, 1)
+        saturated_area_fraction = saturated_area_fraction.clip(0, 1)
         store = soil_water_storage_capacity / (self.var.arno_beta + 1.)
         potential_beta = (self.var.arno_beta + 1.) / self.var.arno_beta
         self.var.potential_infiltration = store - store * (1. - (1. - saturated_area_fraction) ** potential_beta)
 
         # additionally, limit by saturated hydraulic conductivity of top layer        
-        self.var.potential_infiltration.clip(None, self.var.ksat[...,0,:])
+        self.var.potential_infiltration = self.var.potential_infiltration.clip(None, self.var.ksat[...,0,:])
 
     def compute_preferential_flow(self):
         # CWATM, soil.py, lines 295-300
@@ -50,24 +48,9 @@ class Infiltration(object):
                 ** self.var.cPrefFlow)            
             self.var.preferential_flow[self.var.FrostIndex > self.var.FrostIndexThreshold] = 0.
 
-    # def compute_infiltration(self):
-    #     self.var.Infl = np.minimum(
-    #         self.var.potential_infiltation,
-    #         self.var.water_available_for_infiltration - self.var.preferential_flow)
-    #     self.var.Infl[self.var.FrostIndex > self.var.FrostIndexThreshold] = 0.
-
-    # def compute_direct_runoff(self):
-    #     self.var.direct_runoff = (
-    #         self.var.water_available_for_infiltration
-    #         - self.var.Infl
-    #         - self.var.preferential_flow)
-    #     self.var.direct_runoff.clip(0, None)
-    
     def dynamic(self):
         self.compute_infiltration_capacity()
         self.compute_preferential_flow()
-        # self.compute_infiltration()
-        # self.compute_direct_runoff()
 
         ToStore = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
         RunoffIni = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
@@ -116,12 +99,15 @@ class Infiltration(object):
 
         self.var.infiltration = ToStore.copy()
         self.var.direct_runoff = RunoffIni.copy()
-        
+
         # infiltration to top soil layer; if this is full then
         # infiltrate to second soil layer
         self.var.wc[...,0,:] += ToStore
-        cond = self.var.wc[...,0,:] > self.var.wc_sat[...,0,:]
-        self.var.wc[...,1,:] += np.where(cond, self.var.wc_sat[...,0,:] - self.var.wc[...,0,:], 0.)
+        saturation_excess = self.var.wc[...,0,:] - self.var.wc_sat[...,0,:]
+        saturation_excess = saturation_excess.clip(0., None)
+        self.var.wc[...,1,:] += saturation_excess
+        self.var.wc[...,0,:] -= saturation_excess
+        
         self.var.th[...,0,:] = self.var.wc[...,0,:] / self.var.root_depth[...,0,:]
         self.var.th[...,1,:] = self.var.wc[...,1,:] / self.var.root_depth[...,1,:]
         

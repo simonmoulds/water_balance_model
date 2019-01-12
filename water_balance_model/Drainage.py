@@ -23,10 +23,16 @@ class Drainage(object):
 
     def dynamic(self):
 
+        # print 'wc at the start of drainage', self.var.wc[...,:,0]
+        
         available_water = np.maximum(0., self.var.wc - self.var.wc_res)
         storage_capacity = self.var.wc_sat - self.var.wc
-        sat_term = available_water / self.var.wc_range
-        sat_term.clip(0., 1.)
+        sat_term = np.divide(
+            available_water,
+            self.var.wc_range,
+            out=np.zeros_like(self.var.wc_range),
+            where=self.var.wc_range>0)
+        sat_term = sat_term.clip(0., 1.)
         k = (
             self.var.ksat
             * np.sqrt(sat_term)
@@ -50,30 +56,30 @@ class Drainage(object):
         self.var.perc3toGW = np.zeros((1, 1, self.var.nCell))
 
         # Start iterating
-        for i in xrange(no_sub_steps):
-            if i > 0:
+        for i in xrange(no_sub_steps):            
+            if i > 0:           # because we have only just calculated k
                 available_water = np.maximum(0., wc_temp - self.var.wc_res)
                 sat_term = available_water / self.var.wc_range
-                sat_term.clip(0., 1.)
-                k = self.var.ksat * np.sqrt(sat_term) * np.square(1. - (1. - sat_term ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)
+                sat_term = sat_term.clip(0., 1.)
+                k = (
+                    self.var.ksat
+                    * np.sqrt(sat_term)
+                    * np.square(
+                        1.
+                        - (1. - sat_term ** self.var.van_genuchten_inv_m)
+                        ** self.var.van_genuchten_m))
 
             # flux from topsoil to subsoil
-            subperc1to2 = np.minimum(
-                available_water[...,0,:],
-                np.minimum(k[...,0,:] * dtsub, storage_capacity[...,1,:]))
-            subperc2to3 = np.minimum(
-                available_water[...,1,:],
-                np.minimum(k[...,1,:] * dtsub, storage_capacity[...,2,:]))
-            subperc3toGW = np.minimum(
-                available_water[...,2,:],
-                np.minimum(k[...,2,:] * dtsub, available_water[...,2,:]))
-
+            subperc1to2 = np.minimum(available_water[...,0,:], np.minimum(k[...,0,:] * dtsub, storage_capacity[...,1,:]))
+            subperc2to3 = np.minimum(available_water[...,1,:], np.minimum(k[...,1,:] * dtsub, storage_capacity[...,2,:]))
+            subperc3toGW = np.minimum(available_water[...,2,:], np.minimum(k[...,2,:] * dtsub, available_water[...,2,:]))
+            
             available_water[...,0,:] -= subperc1to2
-            available_water[...,1,:] -= (subperc2to3 + subperc1to2)
-            available_water[...,2,:] -= (subperc3toGW + subperc2to3)
-
-            wtemp = available_water + self.var.wc_res
-            storage_capacity = self.var.wc_sat - wtemp
+            available_water[...,1,:] += subperc1to2 - subperc2to3
+            available_water[...,2,:] += subperc2to3 - subperc3toGW
+            
+            wc_temp = available_water + self.var.wc_res
+            storage_capacity = self.var.wc_sat - wc_temp
 
             self.var.perc1to2 += subperc1to2
             self.var.perc2to3 += subperc2to3
@@ -85,8 +91,8 @@ class Drainage(object):
 
         # update soil moisture
         self.var.wc[...,0,:] -= self.var.perc1to2
-        self.var.wc[...,1,:] -= (self.var.perc2to3 + self.var.perc1to2)
-        self.var.wc[...,2,:] -= (self.var.perc3toGW + self.var.perc2to3)
+        self.var.wc[...,1,:] += self.var.perc1to2 - self.var.perc2to3 
+        self.var.wc[...,2,:] += self.var.perc2to3 - self.var.perc3toGW
 
         # compute the amount of water that could not infiltrate and add this water to the surface runoff
         excess = np.maximum(self.var.wc[...,0,:] - self.var.wc_sat[...,0,:], 0.)

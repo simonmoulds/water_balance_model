@@ -4,8 +4,8 @@
 import os
 import numpy as np
 import pcraster as pcr
+import VirtualOS as vos
 from hydro_model_builder.Model import Model
-from hydro_model_builder import VirtualOS as vos
 
 from LandCover import *
 
@@ -20,17 +20,15 @@ class LandSurface(object):
             'sealed'      : Sealed(LandSurface_variable, 'sealed'),
             'water'       : Water(LandSurface_variable, 'water')
             }
-        
-        self.land_cover_module_names = self.land_cover_modules.keys()
-        self.land_cover_module_names_with_soil = [
-            'forest','grassland','irrPaddy','irrNonPaddy'
+        self.land_cover_module_names = [
+            'forest','grassland','irrPaddy','irrNonPaddy','sealed','water'
         ]
-        
+        self.land_cover_module_names_with_soil = self.land_cover_module_names[0:4]
         self.force_cover_fraction_sum_to_equal_one = bool(int(self.var._configuration.LANDCOVER['forceCoverFractionSumToEqualOne']))
         self.grid_cell_area = 1.  # TODO: change to netCDF
         
     def initial(self):
-        for module in self.land_cover_modules.keys():
+        for module in self.land_cover_module_names:
             self.land_cover_modules[module].initial()
 
         self.initialize_cover_fraction()
@@ -40,7 +38,7 @@ class LandSurface(object):
     def initialize_cover_fraction(self):
         self.cover_fraction = {
             module : np.zeros((self.var.nCell)) for module in self.land_cover_module_names
-        }        
+        }
         self.total_cover_fraction = np.zeros((self.var.nCell))
         self.update_cover_fraction()
 
@@ -97,7 +95,6 @@ class LandSurface(object):
         """
         self.aggregate_variables_for_all_land_covers()
         self.aggregate_variables_for_land_covers_with_soil()
-        print self.var.th.shape
         
     def aggregate_variables_for_all_land_covers(self):
         for var_name in self.variables_to_aggregate:
@@ -121,6 +118,14 @@ class LandSurface(object):
         var_list = []
         for module in module_names:
             attr = getattr(self.land_cover_modules[module], var_name)
+            
+            # ***TODO*** this needs to be weighted according to
+            # the area of farm/crop (perhaps see fao66_behaviour
+            # on how to do this). Taking the mean, as we do here,
+            # is only acceptable if both farm and crop dimensions
+            # have length 1
+            attr = np.mean(attr, axis=(0,1))
+            
             attr *= (self.cover_fraction[module] * self.grid_cell_area)
             var_list.append(attr)
         var = np.sum(var_list, axis=0)
@@ -133,4 +138,3 @@ class LandSurface(object):
             self.land_cover_modules[module].dynamic()
         self.correct_cover_fraction()
         self.aggregate_land_cover_variables()
-        

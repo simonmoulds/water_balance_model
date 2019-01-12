@@ -4,7 +4,7 @@
 import os
 import numpy as np
 import pcraster as pcr
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import netCDF4 as nc
 
 class SoilParameters(object):
@@ -42,24 +42,14 @@ class SoilParameters(object):
         self.var.soil_depth12 = self.var.soil_depth[1] + self.var.soil_depth[2]
         
         # These parameters have dimensions depth,lat,lon
-        # soilParams1 = ['ksat', 'th_s', 'th_fc', 'th_wp']
         landmask = np.broadcast_to(self.var.landmask, (self.var.nLayer, self.var.nLat, self.var.nLon))
-        # for param in soilParams1:
-        #     d = vos.netcdf2PCRobjCloneWithoutTime(
-        #         self.var.soilFileNC,
-        #         param,
-        #         cloneMapFileName=self.var.cloneMap)
-        #     print d.shape
-        #     d = d[landmask].reshape(self.var.nLayer,self.var.nCell)
-        #     vars(self.var)[param] = np.broadcast_to(d[None,None,:,:], (self.var.nFarm, self.var.nLC, self.var.nLayer, self.var.nCell))
-
-        # Saturated hydraulic conductivity
         ksat = vos.netcdf2PCRobjCloneWithoutTime(
             str(self.lc_configuration['KsatInputFile']),
             str(self.lc_configuration['KsatVariableName']),
             cloneMapFileName=self.var.cloneMap)
         ksat = ksat[landmask].reshape(self.var.nLayer,self.var.nCell)
-        self.var.ksat = np.broadcast_to(ksat[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell))
+        self.var.ksat = np.broadcast_to(ksat[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell)).copy()
+        self.var.ksat /= 100.   # cm d-1 -> m d-1 ***TODO*** put factor in config
 
         # Saturated water content
         th_s = vos.netcdf2PCRobjCloneWithoutTime(
@@ -118,12 +108,12 @@ class SoilParameters(object):
 
     def compute_van_genuchten_coefficients(self):
         # compute van Genuchten n, m coefficients
-        self.var.van_genuchten_n = self.var.van_genuchten_lambda + 1
+        self.var.van_genuchten_n = self.var.van_genuchten_lambda + 1.
         self.var.van_genuchten_m = self.var.van_genuchten_lambda / self.var.van_genuchten_n
         self.var.van_genuchten_inv_n = 1. / self.var.van_genuchten_n
         self.var.van_genuchten_inv_m = 1. / self.var.van_genuchten_m
         self.var.van_genuchten_inv_alpha = 1. / self.var.van_genuchten_alpha
-        
+
     def compute_soil_hydraulic_parameters(self):
 
         self.compute_van_genuchten_coefficients()

@@ -4,8 +4,8 @@
 import os
 import numpy as np
 import pcraster as pcr
+import VirtualOS as vos
 from hydro_model_builder.Model import Model
-from hydro_model_builder import VirtualOS as vos
 
 from Meteo import Meteo
 from Groundwater import Groundwater

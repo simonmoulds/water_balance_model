@@ -4,7 +4,7 @@
 import os
 import numpy as np
 import pcraster as pcr
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import netCDF4 as nc
 import datetime as datetime
 import calendar as calendar
@@ -71,13 +71,37 @@ class NaturalVegetation(LandCover):
     def dynamic(self):
         self.lc_parameters_module.dynamic()
         self.initial_condition_module.dynamic()
+        # print 'initial_condition'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.root_zone_water_module.dynamic()
+        # print 'root_zone_water'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.snow_frost_module.dynamic()
+        # print 'snow_frost'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.evapotranspiration_module.dynamic()
+        # print 'evapotranspiration'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.interception_module.dynamic()
+        # print 'interception'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.infiltration_module.dynamic()
+        # print 'infiltration'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.capillary_rise_module.dynamic()
+        # print 'capillary_rise'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
         self.drainage_module.dynamic()
+        # print 'drainage'
+        # print self.th[...,:,0]
+        # print self.wc[...,0,0]
 
 class ManagedLand(LandCover):
     def __init__(self, var, config_section_name):

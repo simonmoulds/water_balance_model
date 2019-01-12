@@ -110,7 +110,7 @@ class SnowFrost(object):
             # i=0 -> highest zone
             # i=2 -> lower zone            
             tavg_layer = (
-                self.var.meteo.tavg[None,None,...]
+                self.var.meteo.tavg
                 + self.var.delta_t_snow
                 * self.var.delta_inv_norm[i])
             
@@ -125,7 +125,7 @@ class SnowFrost(object):
 
             rain_layer = np.where(
                 np.logical_not(avg_temperature_below_snow_temperature),
-                self.var.meteo.precipitation[None,None,:],
+                self.var.meteo.precipitation,
                 0.)
 
             # TODO: put this somewhere else (in CWATM, they are in miscInitial)
@@ -136,14 +136,14 @@ class SnowFrost(object):
                 * seasonal_snow_melt_coefficient
                 * (1. + 0.01 * rain_layer)
                 * self.var.dtday)
-            snow_melt_layer.clip(0., None)
+            snow_melt_layer = snow_melt_layer.clip(0., None)
 
             # for which layer the ice melt is calcultated with the middle temp.
             # for the others it is calculated with the corrected temp
             # this is to mimic glacier transport to lower zones
             if i <= self.var.glacier_transport_zone:
                 ice_melt_layer = (
-                    self.var.meteo.tavg[None,None,:]
+                    self.var.meteo.tavg
                     * self.var.ice_melt_coef
                     * self.var.dtday
                     * summer_season)
@@ -156,7 +156,7 @@ class SnowFrost(object):
                     * self.var.dtday
                     * summer_season)
 
-            ice_melt_layer.clip(0., None)
+            ice_melt_layer = ice_melt_layer.clip(0., None)
             snow_melt_layer = np.maximum(
                 np.minimum(
                     (snow_melt_layer + ice_melt_layer),
@@ -177,7 +177,7 @@ class SnowFrost(object):
         frost_index_change_rate = (
             - (1. - self.var.Afrost)
             * self.var.frost_index
-            - self.var.meteo.tavg[None,None,...]
+            - self.var.meteo.tavg
             * np.exp(
                 - 0.04
                 * self.var.Kfrost

@@ -7,7 +7,7 @@ import os
 import time
 import numpy as np
 import hydro_model_builder.Messages
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import datetime as datetime
 import logging
 logger = logging.getLogger(__name__)

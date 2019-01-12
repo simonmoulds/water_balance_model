@@ -17,14 +17,7 @@ class Interception(object):
         self.var.interception_evaporation = np.zeros((1, 1, self.var.nCell))
         
     def compute_water_available_for_infiltration(self):
-        # CWATM, interception.py
-        
-        # # TODO: split precipitation into rain, snow (CWATM snow_frost.py)
-        # P = np.broadcast_to(
-        #     self.var.meteo.precipitation[None,None,:],
-        #     (self.var.nFarm, self.var.nLC, self.var.nCell))
-        # self.var.Rain = P.copy()
-        
+        # CWATM, interception.py        
         throughfall = np.maximum(
             0.,
             self.var.rain

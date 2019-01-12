@@ -4,7 +4,7 @@
 import os
 import numpy as np
 import pcraster as pcr
-import hydro_model_builder.VirtualOS as vos
+import VirtualOS as vos
 import netCDF4 as nc
 
 class TopoParameters(object):
@@ -56,9 +56,9 @@ class TopoParametersNaturalVegetation(TopoParameters):
             (self.var.elevation_standard_deviation - 10.),
             (self.var.elevation_standard_deviation + 1500.))
         self.var.arno_beta_oro += self.var.arno_beta_add
-        self.var.arno_beta_oro.clip(0.01, 1.2)
+        self.var.arno_beta_oro = self.var.arno_beta_oro.clip(0.01, 1.2)
         self.var.arno_beta += self.var.arno_beta_oro
-        self.var.arno_beta.clip(0.01, 1.2)
+        self.var.arno_beta = self.var.arno_beta.clip(0.01, 1.2)
         
 class TopoParametersManagedLand(TopoParametersNaturalVegetation):
     pass

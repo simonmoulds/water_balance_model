@@ -39,7 +39,7 @@ class PotentialEvapotranspiration(object):
     def compute_potential_transpiration(self):
         # CWATM, evaporation.py, line 80
         self.var.Tpot = self.var.ETpot - self.var.Epot - self.var.snow_evap
-        self.var.Tpot.clip(0, None)
+        self.var.Tpot = self.var.Tpot.clip(0, None)
         
     def dynamic(self):
         self.compute_potential_soil_evaporation()
@@ -117,7 +117,7 @@ class ActualEvapotranspiration(object):
         Ks = np.maximum(np.minimum(1., Ks), 0.)
         Ks *= self.var.root_fraction
         Ks_sum = np.sum(Ks, axis=2)
-        Ks_sum.clip(0., 1.)
+        Ks_sum = Ks_sum.clip(0., 1.)
         TactMax = self.var.Tpot * Ks_sum
 
         self.var.FrostIndex = np.zeros((1, 1, self.var.nCell))  # FIXME
@@ -129,8 +129,8 @@ class ActualEvapotranspiration(object):
                 TactMax[:,:,None,:],
                 (1, 1, self.var.nLayer, self.var.nCell))
             * self.var.root_fraction)
-        Tact.clip(None, self.var.wc - self.var.wc_wp)
-        Tact.clip(0., None)
+        Tact = Tact.clip(None, self.var.wc - self.var.wc_wp)
+        Tact = Tact.clip(0., None)
         self.var.Tact_comp = Tact.copy()
         self.var.Tact = np.sum(self.var.Tact_comp, axis=2)  # sum along compartment axis
         
@@ -159,7 +159,7 @@ class ActualEvapotranspiration(object):
 
         # CWATM, soil.py, lines 525-531
         self.var.ETact = self.var.Eact + self.var.Tact + self.var.EWact
-        self.var.ETpot.clip(self.var.ETact, None)
+        self.var.ETpot = self.var.ETpot.clip(self.var.ETact, None)
         
 class Evapotranspiration(object):
     def __init__(self, Evapotranspiration_variable):
