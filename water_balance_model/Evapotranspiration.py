@@ -57,33 +57,6 @@ class ActualEvapotranspiration(object):
         self.var.ETact = np.copy(arr_zeros)
         self.var.EWact = np.copy(arr_zeros)
         self.var.snow_evap = np.copy(arr_zeros)
-        # self.compute_critical_water_content()
-
-    # def compute_root_zone_water(self):        
-    #     # Water content in each soil compartment, in mm
-    #     self.var.wc = 1000 * self.var.th * self.var.root_depth
-
-    # # TODO: ideally the following two methods would be part of the
-    # # SoilParameters module, but compute_root_zone_depletion_factor
-    # # will eventually need ETpot (Evapotranspiration)
-    # def compute_root_zone_depletion_factor(self):
-    #     # TODO: get root zone depletion factor, perhaps using
-    #     # crop group number method, if this can be clarified
-    #     # by Peter Burek @ IIASA
-
-    #     # NB this will be different for natural vegetation and
-    #     # irrigated crops
-        
-    #     # CWATM, soil.py, lines 185-206
-    #     self.var.root_zone_depletion_factor = np.ones((1, 1, self.var.nCell))  # FIXME
-
-    # def compute_critical_water_content(self):
-    #     # CWATM, soil.py, lines 210-212        
-    #     self.compute_root_zone_depletion_factor()
-    #     p = np.broadcast_to(
-    #         self.var.root_zone_depletion_factor[:,:,None,:],
-    #         (1, 1, self.var.nLayer, self.var.nCell))        
-    #     self.var.wc_crit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
         
     def compute_open_water_evaporation(self):
         # CWATM, soil.py, lines 149-171

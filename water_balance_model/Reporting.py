@@ -106,19 +106,19 @@ class Reporting(object):
             for var in self.outMonthEndNC:
                 logger.info("Creating the netcdf file for reporting the month end value of variable %s.", str(var))
                 self.create_netcdf_file(var, self.run_id + "_monthEnd_output")
-                vars(self)[var+'_monthEnd'] = np.zeros((vars(self._model)[var].shape))
+                vars(self)[var+'_monthEnd'] = np.zeros(vars(self._model)[var].shape[:-1] + (self._model.nLat, self._model.nLon))
 
     def initiate_month_total_reporting(self):
         self.outMonthTotNC = ["None"]
         try:
-            self.outMonthTotNC = list(set(self.configuration.reportingOptions['outMonthTotNC'].split(",")))
+            self.outMonthTotNC = self.get_variable_names_for_reporting('outMonthTotNC')
         except:
             pass
         if self.outMonthTotNC[0] != "None":
             for var in self.outMonthTotNC:
                 logger.info("Creating the netcdf file for reporting the monthly average of variable %s.", str(var))
                 self.create_netcdf_file(var, self.run_id + "_monthTot_output")
-                vars(self)[var+'_monthTot'] = np.zeros((vars(self._model)[var].shape))
+                vars(self)[var+'_monthTot'] = np.zeros(vars(self._model)[var].shape[:-1] + (self._model.nLat, self._model.nLon))
 
     def initiate_month_maximum_reporting(self):
         self.outMonthMaxNC = ["None"]
@@ -130,7 +130,7 @@ class Reporting(object):
             for var in self.outMonthMaxNC:
                 logger.info("Creating the netcdf file for reporting the monthly maximum of variable %s.", str(var))
                 self.create_netcdf_file(var, self.run_id + "_monthMax_output")
-                vars(self)[var+'_monthMax'] = np.zeros((vars(self._model)[var].shape))
+                vars(self)[var+'_monthMax'] = np.zeros(vars(self._model)[var].shape[:-1] + (self._model.nLat, self._model.nLon))
 
     def initiate_year_average_reporting(self):
         self.outYearAvgNC = ["None"]
@@ -160,7 +160,7 @@ class Reporting(object):
     def initiate_year_total_reporting(self):
         self.outYearTotNC = ["None"]
         try:
-            self.outYearTotNC = list(set(self.configuration.reportingOptions['outYearTotNC'].split(",")))
+            self.outYearTotNC = self.get_variable_names_for_reporting('outYearTotNC')
         except:
             pass
         if self.outYearTotNC[0] != "None":
@@ -250,13 +250,14 @@ class Reporting(object):
     def report_month_total(self):
         if self.outMonthTotNC[0] != "None":
             for var in self.outMonthTotNC:
-                if self._modelTime.day == 1: vars(self)[var+'_monthAvg'].fill(0)
-                vars(self)[var+'_monthAvg'] += vars(self)[var]
+                if self._modelTime.day == 1: vars(self)[var+'_monthTot'].fill(0)
+                vars(self)[var+'_monthTot'][...,self._model.landmask] += vars(self)[var][...,self._model.landmask]
+                
                 if self._modelTime.endMonth:
                     self.netcdfObj.add_data_to_netcdf(
                         self.outNCDir+"/"+str(var)+"_monthTot_output.nc",
                         var,
-                        self.__getattribute__(var+'_monthAvg'),
+                        self.__getattribute__(var+'_monthTot'),
                         self.time_stamp)                    
 
     def report_month_maximum(self):

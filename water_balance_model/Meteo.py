@@ -141,7 +141,7 @@ class Meteo(object):
     def adjust_temperature_data(self):
         self.tmin = self.tminConst + self.tminFactor * self.tmin
         self.tmax = self.tmaxConst + self.tmaxFactor * self.tmax
-        self.tavg = self.tavgConst + self.tavgFactor * self.tmax
+        self.tavg = self.tavgConst + self.tavgFactor * self.tavg
         self.tmin = np.round(self.tmin * 1000.) / 1000.
         self.tmax = np.round(self.tmax * 1000.) / 1000.
         self.tavg = np.round(self.tavg * 1000.) / 1000.
@@ -204,7 +204,7 @@ class Meteo(object):
             cloneMapFileName=self.cloneMap,
             LatitudeLongitude = True)[self.landmask][None,None,:]
         self.adjust_reference_ET_data()
-
+        
     def read_reference_EW_data(self):
         # **TODO**
         self.EWref = self.referencePotET.copy()

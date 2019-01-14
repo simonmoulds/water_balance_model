@@ -17,7 +17,6 @@ from LandCoverParameters import *
 from Drainage import Drainage
 from Interception import *
 from Irrigation import *
-from RainfallPartition import RainfallPartition
 from Infiltration import *
 from CapillaryRise import CapillaryRise
 from Evapotranspiration import *
@@ -49,7 +48,7 @@ class NaturalVegetation(LandCover):
 
         self.lc_parameters_module = NaturalVegetationParameters(self, config_section_name)
         self.initial_condition_module = InitialConditionNaturalVegetation(self)
-        self.root_zone_water_module = RootZoneWater(self)
+        self.root_zone_water_module = RootZoneWaterNaturalVegetation(self)
         self.snow_frost_module = SnowFrost(self)
         self.evapotranspiration_module = Evapotranspiration(self)
         self.interception_module = Interception(self)
@@ -71,37 +70,13 @@ class NaturalVegetation(LandCover):
     def dynamic(self):
         self.lc_parameters_module.dynamic()
         self.initial_condition_module.dynamic()
-        # print 'initial_condition'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.root_zone_water_module.dynamic()
-        # print 'root_zone_water'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.snow_frost_module.dynamic()
-        # print 'snow_frost'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.evapotranspiration_module.dynamic()
-        # print 'evapotranspiration'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.interception_module.dynamic()
-        # print 'interception'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.infiltration_module.dynamic()
-        # print 'infiltration'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.capillary_rise_module.dynamic()
-        # print 'capillary_rise'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
         self.drainage_module.dynamic()
-        # print 'drainage'
-        # print self.th[...,:,0]
-        # print self.wc[...,0,0]
 
 class ManagedLand(LandCover):
     def __init__(self, var, config_section_name):
@@ -118,7 +93,7 @@ class ManagedLand(LandCover):
         self.infiltration_module = Infiltration(self)
         self.capillary_rise_module = CapillaryRise(self)
         self.drainage_module = Drainage(self)
-
+        
     def initial(self):
         self.lc_parameters_module.initial()
         self.initial_condition_module.initial()
@@ -137,7 +112,7 @@ class ManagedLand(LandCover):
         self.root_zone_water_module.dynamic()
         self.snow_frost_module.dynamic()
         self.evapotranspiration_module.dynamic()
-        self.interception_module.dynamic()
+        self.interception_module.dynamic()        
         self.irrigation_module.dynamic()
         self.infiltration_module.dynamic()
         self.capillary_rise_module.dynamic()
@@ -149,6 +124,7 @@ class ManagedLandIrrPaddy(ManagedLand):
             var,
             config_section_name)
         self.irrigation_module = IrrigationPaddy(self)
+        self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
 
 class ManagedLandIrrNonPaddy(ManagedLand):
     def __init__(self, var, config_section_name):
@@ -156,6 +132,7 @@ class ManagedLandIrrNonPaddy(ManagedLand):
             var,
             config_section_name)
         self.irrigation_module = IrrigationNonPaddy(self)
+        self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
 
 class SealedLand(LandCover):
     def __init__(self, var, config_section_name):

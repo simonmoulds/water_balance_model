@@ -20,24 +20,42 @@ class RootZoneWater(object):
     def update_root_zone_water_content(self):
         self.var.wc = self.var.th * self.var.root_depth
 
-    def compute_root_zone_depletion_factor(self):
+    def compute_root_zone_depletion_factor_with_crop_group_number(self):
         # TODO: get root zone depletion factor, perhaps using
         # crop group number method, if this can be clarified
         # by Peter Burek @ IIASA
 
-        # NB this will be different for natural vegetation and
-        # irrigated crops
+        # CWATM, soil.py, lines 182-206
         
-        # CWATM, soil.py, lines 185-206
-        self.var.root_zone_depletion_factor = np.ones((1, 1, self.var.nCell))  # FIXME
-
+        # CWATM, soil.py, line 183: "to avoid a strange
+        # behaviour of the p-formula's, ETref is set to a
+        # maximum of 10mm/day"
+        ETpot = np.minimum(0.1 * (self.var.ETpot * 1000.), 1.)
+        
+        p = 1. / (0.76 + 1.5 * ETpot) - 0.1 * (5. - self.var.crop_group_number)
+        p = np.where(
+            self.var.crop_group_number <= 2.5,
+            p + (ETpot - 0.6)
+             / (self.var.crop_group_number
+                * (self.var.crop_group_number + 3.)),
+            p)
+        p = p.clip(0., 1.)
+        self.var.root_zone_depletion_factor = p.copy()
+        
+    def compute_root_zone_depletion_factor(self):
+        ETpot = np.minimum(0.1 * (self.var.ETpot * 1000.), 1.)
+        p = 1. / (0.76 + 1.5 * ETpot) - 0.4
+        p += (ETpot - 0.6) / 4.
+        p = p.clip(0., 1.)
+        self.var.root_zone_depletion_factor = p.copy()
+        
     def compute_critical_water_content(self):
         # CWATM, soil.py, lines 210-212
         self.compute_root_zone_depletion_factor()
-        p = np.broadcast_to(
-            self.var.root_zone_depletion_factor[:,:,None,:],
-            (1, 1, self.var.nLayer, self.var.nCell))        
-        self.var.wc_crit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
+        self.var.wc_crit = (
+            ((1 - self.var.root_zone_depletion_factor)
+             * (self.var.wc_fc - self.var.wc_wp))
+            + self.var.wc_wp)
         
     def compute_readily_available_water(self):
         self.update_root_zone_water_content()
@@ -52,3 +70,34 @@ class RootZoneWater(object):
         
     def dynamic(self):
         self.update_root_zone_water_content()
+
+class RootZoneWaterNaturalVegetation(RootZoneWater):
+    def compute_root_zone_depletion_factor(self):
+        # CWATM, soil.py, lines 182-206
+        
+        # CWATM, soil.py, line 183: "to avoid a strange
+        # behaviour of the p-formula's, ETref is set to a
+        # maximum of 10mm/day"
+        ETpot = np.minimum(0.1 * (self.var.ETpot * 1000.), 1.)
+        
+        p = 1. / (0.76 + 1.5 * ETpot) - 0.1 * (5. - self.var.crop_group_number)
+        p = np.where(
+            self.var.crop_group_number <= 2.5,
+            p + (ETpot - 0.6)
+             / (self.var.crop_group_number
+                * (self.var.crop_group_number + 3.)),
+            p)
+        p = p.clip(0., 1.)
+        self.var.root_zone_depletion_factor = p.copy()
+    
+class RootZoneWaterIrrigatedLand(RootZoneWater):
+    def compute_root_zone_depletion_factor(self):
+        # do not use crop group number for irrigated crops,
+        # because we assume that irrigated crops have low
+        # adaptation to dry climate
+        ETpot = np.minimum(0.1 * (self.var.ETpot * 1000.), 1.)
+        p = 1. / (0.76 + 1.5 * ETpot) - 0.4
+        p += (ETpot - 0.6) / 4.
+        p = p.clip(0., 1.)
+        self.var.root_zone_depletion_factor = p.copy()
+

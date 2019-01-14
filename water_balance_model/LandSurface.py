@@ -9,28 +9,58 @@ from hydro_model_builder.Model import Model
 
 from LandCover import *
 
+class GridCellArea(object):
+    def __init__(self, GridCellArea_variable):
+        self.var = GridCellArea_variable
+
+    def initial(self):
+        self.gridCellAreaNC = str(self.var._configuration.MASK_OUTLET['gridCellAreaInputFile'])
+        self.gridCellAreaVarName = str(self.var._configuration.MASK_OUTLET['gridCellAreaVariableName'])
+        self.read_grid_cell_area()
+        
+    def read_grid_cell_area(self):
+        self.var.grid_cell_area = vos.netcdf2PCRobjCloneWithoutTime(
+            self.gridCellAreaNC,
+            self.gridCellAreaVarName,
+            cloneMapFileName = self.var.cloneMap)[self.var.landmask]
+        
+    def dynamic(self):
+        pass
+
 class LandSurface(object):
     def __init__(self, LandSurface_variable):
         self.var = LandSurface_variable
         self.land_cover_modules = {
             'forest'      : Forest(LandSurface_variable, 'forest'),
             'grassland'   : Grassland(LandSurface_variable, 'grassland'),
-            'irrPaddy'    : IrrPaddy(LandSurface_variable, 'irrPaddy'),
+            # 'irrPaddy'    : IrrPaddy(LandSurface_variable, 'irrPaddy'),
             'irrNonPaddy' : IrrNonPaddy(LandSurface_variable, 'irrNonPaddy'),
             'sealed'      : Sealed(LandSurface_variable, 'sealed'),
             'water'       : Water(LandSurface_variable, 'water')
             }
         self.land_cover_module_names = [
-            'forest','grassland','irrPaddy','irrNonPaddy','sealed','water'
+            'forest',
+            'grassland',
+            # 'irrPaddy',
+            'irrNonPaddy',
+            'sealed',
+            'water'
         ]
-        self.land_cover_module_names_with_soil = self.land_cover_module_names[0:4]
+        self.land_cover_module_names_with_soil = [
+            'forest',
+            'grassland',
+            # 'irrPaddy',
+            'irrNonPaddy'
+        ]
         self.force_cover_fraction_sum_to_equal_one = bool(int(self.var._configuration.LANDCOVER['forceCoverFractionSumToEqualOne']))
-        self.grid_cell_area = 1.  # TODO: change to netCDF
+        
+        self.grid_cell_area_module = GridCellArea(LandSurface_variable)
         
     def initial(self):
         for module in self.land_cover_module_names:
             self.land_cover_modules[module].initial()
 
+        self.grid_cell_area_module.initial()
         self.initialize_cover_fraction()
         self.initialize_land_cover_variables_to_aggregate()
         self.aggregate_land_cover_variables()
@@ -41,7 +71,7 @@ class LandSurface(object):
         }
         self.total_cover_fraction = np.zeros((self.var.nCell))
         self.update_cover_fraction()
-
+            
     def update_cover_fraction(self):
         for index,module in enumerate(self.land_cover_module_names):
             self.cover_fraction[module] = getattr(
@@ -101,7 +131,7 @@ class LandSurface(object):
             var = self.aggregate_single_land_cover_variable(
                 var_name,
                 self.land_cover_module_names,
-                self.grid_cell_area * self.total_cover_fraction
+                self.total_cover_fraction
             )
             vars(self.var)[var_name] = var.copy()  # remove farm, crop dimension
             
@@ -110,7 +140,7 @@ class LandSurface(object):
             var = self.aggregate_single_land_cover_variable(
                 var_name,
                 self.land_cover_module_names_with_soil,
-                self.grid_cell_area * self.total_cover_fraction_soil
+                self.total_cover_fraction_soil
                 )            
             vars(self.var)[var_name] = var.copy()
 
@@ -126,11 +156,11 @@ class LandSurface(object):
             # have length 1
             attr = np.mean(attr, axis=(0,1))
             
-            attr *= (self.cover_fraction[module] * self.grid_cell_area)
+            attr *= (self.cover_fraction[module] * self.var.grid_cell_area)
             var_list.append(attr)
         var = np.sum(var_list, axis=0)
         if var_name in self.variables_to_aggregate_by_averaging:
-            var /= self.grid_cell_area * total_cover_fraction
+            var /= self.var.grid_cell_area * total_cover_fraction
         return var
                 
     def dynamic(self):

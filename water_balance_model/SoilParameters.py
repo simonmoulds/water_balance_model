@@ -40,6 +40,13 @@ class SoilParameters(object):
         self.var.soil_depth[1] *= soildepth_factor
         self.var.soil_depth[2] *= soildepth_factor
         self.var.soil_depth12 = self.var.soil_depth[1] + self.var.soil_depth[2]
+
+        # crop group number
+        # TODO: would it make more sense to have this per crop?
+        self.var.crop_group_number = vos.netcdf2PCRobjCloneWithoutTime(
+            str(self.var._configuration.SOIL['cropGroupNumberInputFile']),
+            str(self.var._configuration.SOIL['cropGroupNumberVariableName']),
+            cloneMapFileName=self.var.cloneMap)[self.var.landmask]
         
         # These parameters have dimensions depth,lat,lon
         landmask = np.broadcast_to(self.var.landmask, (self.var.nLayer, self.var.nLat, self.var.nLon))

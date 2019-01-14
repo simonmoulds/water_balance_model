@@ -78,9 +78,10 @@ class IrrigationNonPaddy(Irrigation):
                 np.maximum(0., alpha_depletion * total_available_water),
                 0.),
             0.)
+
         self.var.irrigation = self.var.irrigation.clip(None, self.var.potential_infiltration)
 
-        # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - TODO
+        # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - ***TODO***
 
         self.var.irrigation_efficiency = 1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency

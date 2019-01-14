@@ -31,7 +31,7 @@ class Infiltration(object):
         store = soil_water_storage_capacity / (self.var.arno_beta + 1.)
         potential_beta = (self.var.arno_beta + 1.) / self.var.arno_beta
         self.var.potential_infiltration = store - store * (1. - (1. - saturated_area_fraction) ** potential_beta)
-
+        
         # additionally, limit by saturated hydraulic conductivity of top layer        
         self.var.potential_infiltration = self.var.potential_infiltration.clip(None, self.var.ksat[...,0,:])
 
@@ -91,6 +91,7 @@ class Infiltration(object):
         # layer
         cond2 = (self.var.Bunds == 0)
         cond21 = (cond2 & (self.var.water_available_for_infiltration > self.var.potential_infiltration))
+
         ToStore[cond21] = self.var.potential_infiltration[cond21]
         RunoffIni[cond21] = (self.var.water_available_for_infiltration - self.var.potential_infiltration)[cond21]
         cond22 = (cond2 & np.logical_not(cond21))
