@@ -9,6 +9,8 @@ import datetime as datetime
 
 from SoilParameters import *
 from TopoParameters import *
+from CropParameters import *
+from FarmParameters import *
 from IrrigationParameters import *
 from FieldManagementParameters import *
 
@@ -77,7 +79,7 @@ class CropCoefficient(BaseClass):
     def initial(self):
         self.cropCoefficientNC = str(self.configuration['cropCoefficientInputFile'])
         self.cropCoefficientVarName = str(self.configuration['cropCoefficientVariableName'])
-        self.var.cropCoefficient = np.zeros((1, 1, self.var.nCell))
+        self.var.cropCoefficient = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.update_crop_coefficient()
         
     def update_crop_coefficient(self):
@@ -106,7 +108,7 @@ class MinimumInterceptionCapacity(BaseClass):
     def initial(self):
         self.var.minInterceptCap = np.float(self.configuration['minInterceptCap'])
         self.var.interception_capacity = (
-            np.ones((self.var.nFarm, self.var.nLC, self.var.nCell))
+            np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell))
             * self.var.minInterceptCap)
         
     def dynamic(self):
@@ -289,4 +291,42 @@ class ManagedLandParameters(LandCoverParameters):
         self.cover_fraction_module.dynamic()
         self.crop_coefficient_module.dynamic()
         self.intercept_capacity_module.dynamic()
+
+class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
+    def __init__(self, var, config_section_name):
+        super(ManagedLandWithFarmerBehaviourParameters, self).__init__(var, config_section_name)
+        self.soil_parameters_module = SoilParameters(var, config_section_name)
+        self.topo_parameters_module = TopoParametersManagedLand(var, config_section_name)
+        
+        self.crop_parameters_module = CropParameters(var, self.configuration)
+        self.farm_parameters_module = FarmParameters(var, self.configuration)
+        
+        self.cover_fraction_module = CoverFraction(var, self.configuration)
+        self.crop_coefficient_module = CropCoefficient(var, self.configuration)
+        self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
+        self.root_depth_module = MaxRootDepth(var, self.configuration)            
+        self.root_fraction_module = RootFraction(var, self.configuration)
+        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, config_section_name)
+        self.irrigation_parameters_module = IrrigationParameters(var, config_section_name)
+
+    def initial(self):
+        self.soil_parameters_module.initial()
+        self.topo_parameters_module.initial()
+        self.cover_fraction_module.initial()
+        self.crop_coefficient_module.initial()
+        self.intercept_capacity_module.initial()
+        self.root_depth_module.initial()
+        self.root_fraction_module.initial()
+        self.field_mgmt_parameters_module.initial()
+        self.irrigation_parameters_module.initial()
+        self.soil_parameters_module.compute_soil_hydraulic_parameters()
+
+    def dynamic(self):
+        self.soil_parameters_module.dynamic()
+        self.topo_parameters_module.dynamic()
+        self.cover_fraction_module.dynamic()
+        self.crop_coefficient_module.dynamic()
+        self.intercept_capacity_module.dynamic()
+
+
         

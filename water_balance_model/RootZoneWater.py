@@ -11,7 +11,7 @@ class RootZoneWater(object):
         self.var = RootZoneWater_variable
 
     def initial(self):
-        arr_zeros = np.zeros((1, 1, self.var.nLayer, self.var.nCell))
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
         self.var.readily_available_water = arr_zeros.copy()
         self.var.total_available_water = arr_zeros.copy()
         self.var.critical_available_water = arr_zeros.copy()
@@ -41,6 +41,10 @@ class RootZoneWater(object):
             p)
         p = p.clip(0., 1.)
         self.var.root_zone_depletion_factor = p.copy()
+        # TODO: only do this once
+        self.var.root_zone_depletion_factor = np.broadcast_to(
+            self.var.root_zone_depletion_factor[:,:,None,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
         
     def compute_root_zone_depletion_factor(self):
         ETpot = np.minimum(0.1 * (self.var.ETpot * 1000.), 1.)
@@ -48,12 +52,15 @@ class RootZoneWater(object):
         p += (ETpot - 0.6) / 4.
         p = p.clip(0., 1.)
         self.var.root_zone_depletion_factor = p.copy()
+        self.var.root_zone_depletion_factor = np.broadcast_to(
+            self.var.root_zone_depletion_factor[:,:,None,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
         
     def compute_critical_water_content(self):
         # CWATM, soil.py, lines 210-212
         self.compute_root_zone_depletion_factor()
         self.var.wc_crit = (
-            ((1 - self.var.root_zone_depletion_factor)
+            ((1. - self.var.root_zone_depletion_factor)
              * (self.var.wc_fc - self.var.wc_wp))
             + self.var.wc_wp)
         
@@ -72,6 +79,7 @@ class RootZoneWater(object):
         self.update_root_zone_water_content()
 
 class RootZoneWaterNaturalVegetation(RootZoneWater):
+    
     def compute_root_zone_depletion_factor(self):
         # CWATM, soil.py, lines 182-206
         
@@ -89,6 +97,9 @@ class RootZoneWaterNaturalVegetation(RootZoneWater):
             p)
         p = p.clip(0., 1.)
         self.var.root_zone_depletion_factor = p.copy()
+        self.var.root_zone_depletion_factor = np.broadcast_to(
+            self.var.root_zone_depletion_factor[:,:,None,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
     
 class RootZoneWaterIrrigatedLand(RootZoneWater):
     def compute_root_zone_depletion_factor(self):
@@ -100,4 +111,6 @@ class RootZoneWaterIrrigatedLand(RootZoneWater):
         p += (ETpot - 0.6) / 4.
         p = p.clip(0., 1.)
         self.var.root_zone_depletion_factor = p.copy()
-
+        self.var.root_zone_depletion_factor = np.broadcast_to(
+            self.var.root_zone_depletion_factor[:,:,None,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))

@@ -11,7 +11,7 @@ class PotentialEvapotranspiration(object):
         self.var = PotentialEvapotranspiration_variable
 
     def initial(self):
-        arr_zeros = np.zeros((1, 1, self.var.nCell))
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.Epot = np.copy(arr_zeros)
         self.var.Tpot = np.copy(arr_zeros)
         self.var.ETpot = np.copy(arr_zeros)
@@ -51,7 +51,7 @@ class ActualEvapotranspiration(object):
         self.var = ActualEvapotranspiration_variable
 
     def initial(self):
-        arr_zeros = np.zeros((1, 1, self.var.nCell))
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.Eact = np.copy(arr_zeros)
         self.var.Tact = np.copy(arr_zeros)
         self.var.ETact = np.copy(arr_zeros)
@@ -74,7 +74,7 @@ class ActualEvapotranspiration(object):
         # # broadcast crop depletion factor to compartments
         # p = np.broadcast_to(
         #     self.var.root_zone_depletion_factor[:,:,None,:],
-        #     (1, 1, self.var.nLayer, self.var.nCell))
+        #     (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
         
         # # work out critical water content (mm)
 
@@ -93,14 +93,14 @@ class ActualEvapotranspiration(object):
         Ks_sum = Ks_sum.clip(0., 1.)
         TactMax = self.var.Tpot * Ks_sum
 
-        self.var.FrostIndex = np.zeros((1, 1, self.var.nCell))  # FIXME
-        self.var.FrostIndexThreshold = np.ones((1, 1, self.var.nCell)) * 999.  # FIXME - currently just a large number
+        self.var.FrostIndex = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))  # FIXME
+        self.var.FrostIndexThreshold = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * 999.  # FIXME - currently just a large number
 
         TactMax = np.where(self.var.FrostIndex > self.var.FrostIndexThreshold, 0., TactMax)
         Tact = (
             np.broadcast_to(
                 TactMax[:,:,None,:],
-                (1, 1, self.var.nLayer, self.var.nCell))
+                (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
             * self.var.root_fraction)
         Tact = Tact.clip(None, self.var.wc - self.var.wc_wp)
         Tact = Tact.clip(0., None)

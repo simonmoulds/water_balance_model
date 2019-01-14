@@ -28,7 +28,7 @@ class LandCover(object):
         self.cloneMap = var.cloneMap
         self.landmask = var.landmask
         self.nLat, self.nLon, self.nCell = var.nLat, var.nLon, var.nCell
-        self.nFarm, self.nLC = 1, 1
+        self.nFarm, self.nCrop = 1, 1
 
         # attach meteorological and groundwater data to land cover object
         self.meteo = var.meteo_module
@@ -134,6 +134,65 @@ class ManagedLandIrrNonPaddy(ManagedLand):
         self.irrigation_module = IrrigationNonPaddy(self)
         self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
 
+class ManagedLandWithFarmerBehaviour(LandCover):
+    def __init__(self, var, config_section_name):
+        super(ManagedLandWithFarmerBehaviour, self).__init__(
+            var,
+            config_section_name)
+
+        self.lc_parameters_module = ManagedLandWithFarmerBehaviourParameters(self, config_section_name)
+        self.initial_condition_module = InitialConditionManagedLand(self)
+        self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
+        self.snow_frost_module = SnowFrost(self)
+        self.evapotranspiration_module = Evapotranspiration(self)
+        self.interception_module = Interception(self)
+
+        # demand vs supply
+        self.irrigation_demand_module = IrrigationNonPaddy(self)
+        # self.tubewell_module = Tubewells(self)
+        # self.canal_access_module = CanalAccess(self)
+        # self.irrigation_supply_module = IrrigationSupply(self)
+        
+        self.infiltration_module = Infiltration(self)
+        self.capillary_rise_module = CapillaryRise(self)
+        self.drainage_module = Drainage(self)
+
+        # # crop yield, farmer income
+        # self.crop_yield_module = CropYield(self)
+        # self.income_module = Income(self)
+        # self.investment_module = Investment(self)
+        # self.accounting_module = Accounting(self)
+        
+    def initial(self):
+        self.lc_parameters_module.initial()
+        self.initial_condition_module.initial()
+        self.root_zone_water_module.initial()
+        self.snow_frost_module.initial()
+        self.evapotranspiration_module.initial()        
+        self.interception_module.initial()
+        
+        self.irrigation_demand_module.initial()
+        # self.tubewell_module.initial()
+        
+        self.infiltration_module.initial()
+        self.capillary_rise_module.initial()
+        self.drainage_module.initial()
+        
+    def dynamic(self):
+        self.lc_parameters_module.dynamic()
+        self.initial_condition_module.dynamic()
+        self.root_zone_water_module.dynamic()
+        self.snow_frost_module.dynamic()
+        self.evapotranspiration_module.dynamic()
+        self.interception_module.dynamic()
+        
+        self.irrigation_demand_module.dynamic()
+        # self.tubewell_module.dynamic()
+        
+        self.infiltration_module.dynamic()
+        self.capillary_rise_module.dynamic()
+        self.drainage_module.dynamic()
+
 class SealedLand(LandCover):
     def __init__(self, var, config_section_name):
         super(SealedLand, self).__init__(
@@ -209,8 +268,10 @@ class Grassland(NaturalVegetation):
 class IrrPaddy(ManagedLandIrrPaddy):
     """Class to represent irrigated paddy"""
 
-class IrrNonPaddy(ManagedLandIrrNonPaddy):
+class IrrNonPaddy(ManagedLandWithFarmerBehaviour):
     """Class to represent irrigated non-paddy"""
+# class IrrNonPaddy(ManagedLandIrrNonPaddy):
+#     """Class to represent irrigated non-paddy"""
     
 class Sealed(SealedLand):
     """Class to represent sealed area"""

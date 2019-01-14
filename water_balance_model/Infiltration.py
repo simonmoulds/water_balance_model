@@ -12,11 +12,12 @@ class Infiltration(object):
     def __init__(self, Infiltration_variable):
         self.var = Infiltration_variable
 
-    def initial(self):        
-        self.var.potential_infiltration = np.zeros((1, 1, self.var.nCell))
-        self.var.infiltration = np.zeros((1, 1, self.var.nCell))
-        self.var.direct_runoff = np.zeros((1, 1, self.var.nCell))
-        self.var.preferential_flow = np.zeros((1, 1, self.var.nCell))
+    def initial(self):
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.potential_infiltration = arr_zeros.copy()
+        self.var.infiltration = arr_zeros.copy()
+        self.var.direct_runoff = arr_zeros.copy()
+        self.var.preferential_flow = arr_zeros.copy()
 
     def reset_initial_conditions(self):
         pass
@@ -52,8 +53,8 @@ class Infiltration(object):
         self.compute_infiltration_capacity()
         self.compute_preferential_flow()
 
-        ToStore = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-        RunoffIni = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        ToStore = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        RunoffIni = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         InflTot = (
             self.var.water_available_for_infiltration
             + self.var.SurfaceStorage)

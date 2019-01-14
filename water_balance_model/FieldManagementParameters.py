@@ -15,8 +15,8 @@ class FieldManagementParameters(object):
         self.lc_configuration = getattr(self.var._configuration, config_section_name)
 
     def initial(self):
-        self.var.Bunds = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell), dtype=np.bool)
-        self.var.zBund = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        self.var.Bunds = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell), dtype=np.bool)
+        self.var.zBund = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         
     def read(self):
         pass
@@ -29,5 +29,5 @@ class FieldManagementParametersManagedLand(FieldManagementParameters):
     def initial(self):
         bunds = np.bool(np.int(self.lc_configuration['bunds']))
         zbund = np.float(self.lc_configuration['zBund'])
-        self.var.Bunds = np.ones((1, 1, self.var.nCell)) * bunds
-        self.var.zBund = np.ones((1, 1, self.var.nCell)) * zbund
+        self.var.Bunds = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * bunds
+        self.var.zBund = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * zbund

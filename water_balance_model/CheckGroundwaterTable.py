@@ -16,7 +16,7 @@ class CheckGroundwaterTable(object):
 
     def initial(self):
         self.var.th_fc_adj = np.copy(self.var.th_fc_comp)
-        self.var.WTinSoil = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell),dtype=bool)
+        self.var.WTinSoil = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell),dtype=bool)
 
     # def reset_initial_conditions(self):
     #     self.var.WTinSoil[self.var.GrowingSeasonDayOne] = False
@@ -30,17 +30,17 @@ class CheckGroundwaterTable(object):
         # if self.var.WaterTable:
         if self.var.groundwater.WaterTable:
             # Copy depth to groundwater, and add crop dimension for convenience
-            # zGW = self.var.zGW[None,:] * np.ones((self.var.nLC))[:,None]
+            # zGW = self.var.zGW[None,:] * np.ones((self.var.nCrop))[:,None]
             # zGW_comp = zGW[:,None,:] * np.ones((self.var.nComp))[None,:,None]
-            zGW_comp = np.broadcast_to(self.var.groundwater.zGW[None,None,None,:], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
-            # zGW_comp = self.var.zGW[None,None,None,:] * np.ones((self.var.nLC,self.var.nComp))[:,:,None]
+            zGW_comp = np.broadcast_to(self.var.groundwater.zGW[None,None,None,:], (self.var.nFarm, self.var.nCrop, self.var.nComp, self.var.nCell))
+            # zGW_comp = self.var.zGW[None,None,None,:] * np.ones((self.var.nCrop,self.var.nComp))[:,:,None]
 
             # get the mid point of each compartment
             zBot = np.cumsum(self.var.dz)
             zTop = zBot - self.var.dz
             zMid = (zTop + zBot) / 2
-            zMid = np.broadcast_to(zMid[None,None,:,None], (self.var.nFarm, self.var.nLC, self.var.nComp, self.var.nCell))
-            # zMid = zMid[None,:,None] * np.ones((self.var.nLC,self.var.nCell))[:,None,:]
+            zMid = np.broadcast_to(zMid[None,None,:,None], (self.var.nFarm, self.var.nCrop, self.var.nComp, self.var.nCell))
+            # zMid = zMid[None,:,None] * np.ones((self.var.nCrop,self.var.nCell))[:,None,:]
 
             # Check if water table is within modelled soil profile
             WTinSoilComp = (zMid >= zGW_comp)
@@ -53,7 +53,7 @@ class CheckGroundwaterTable(object):
             self.var.WTinSoil = np.sum(WTinSoilComp, axis=2).astype(bool)  # CHECK
 
             # get Xmax
-            Xmax = np.zeros((self.var.nFarm,self.var.nLC,self.var.nComp,self.var.nCell))
+            Xmax = np.zeros((self.var.nFarm,self.var.nCrop,self.var.nComp,self.var.nCell))
             cond1 = self.var.th_fc_comp <= 0.1
             cond2 = self.var.th_fc_comp >= 0.3
             cond3 = np.logical_not(cond1 | cond2) # i.e. 0.1 < fc < 0.3
@@ -66,7 +66,7 @@ class CheckGroundwaterTable(object):
 
             # Index of the compartment to which each element belongs (shallow ->
             # deep, i.e. 1 is the shallowest)
-            compartment = (np.arange(1, self.var.nComp + 1)[None,None,:,None] * np.ones((self.var.nFarm, self.var.nLC, self.var.nCell))[:,:,None,:])
+            compartment = (np.arange(1, self.var.nComp + 1)[None,None,:,None] * np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell))[:,:,None,:])
 
             # Index of the lowest compartment (i.e. the maximum value) for which
             # cond4 is met, cast to all compartments (achieved by multiplying
@@ -96,5 +96,5 @@ class CheckGroundwaterTable(object):
             self.var.th_fc_adj[cond7] = self.var.th_fc_comp[cond7] + dFC[cond7]
 
         else:
-            self.var.WTinSoil = np.full((self.var.nFarm, self.var.nLC, self.var.nCell), False)
+            self.var.WTinSoil = np.full((self.var.nFarm, self.var.nCrop, self.var.nCell), False)
             self.var.th_fc_adj = np.copy(self.var.th_fc_comp)

@@ -100,10 +100,10 @@ class SnowFrost(object):
         else:
             summer_season = 0.
 
-        self.var.snow = np.zeros((1, 1, self.var.nCell))
-        self.var.rain = np.zeros((1, 1, self.var.nCell))
-        self.var.snow_melt = np.zeros((1, 1, self.var.nCell))
-        self.var.snow_cover = np.zeros((1, 1, self.var.nCell))
+        self.var.snow = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.rain = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.snow_melt = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.snow_cover = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
         for i in xrange(self.var.number_snow_layers):
             # Temperature at center of each zone (temperature at zone B equals Tavg)

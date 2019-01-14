@@ -55,7 +55,7 @@ class SoilParameters(object):
             str(self.lc_configuration['KsatVariableName']),
             cloneMapFileName=self.var.cloneMap)
         ksat = ksat[landmask].reshape(self.var.nLayer,self.var.nCell)
-        self.var.ksat = np.broadcast_to(ksat[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell)).copy()
+        self.var.ksat = np.broadcast_to(ksat[None,None,:,:], (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell)).copy()
         self.var.ksat /= 100.   # cm d-1 -> m d-1 ***TODO*** put factor in config
 
         # Saturated water content
@@ -64,7 +64,7 @@ class SoilParameters(object):
             self.lc_configuration['saturatedWaterContentVariableName'],
             cloneMapFileName=self.var.cloneMap)
         th_s = th_s[landmask].reshape(self.var.nLayer,self.var.nCell)
-        self.var.th_s = np.broadcast_to(th_s[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell))
+        self.var.th_s = np.broadcast_to(th_s[None,None,:,:], (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # # Field capacity
         # th_fc = vos.netcdf2PCRobjCloneWithoutTime(
@@ -72,7 +72,7 @@ class SoilParameters(object):
         #     self.lc_configuration['fieldCapacityVariableName'],
         #     cloneMapFileName=self.var.cloneMap)
         # th_fc = th_fc[landmask].reshape(self.var.nLayer,self.var.nCell)
-        # self.var.th_fc = np.broadcast_to(th_fc[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell))
+        # self.var.th_fc = np.broadcast_to(th_fc[None,None,:,:], (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # # Wilting point
         # th_wp = vos.netcdf2PCRobjCloneWithoutTime(
@@ -80,7 +80,7 @@ class SoilParameters(object):
         #     self.lc_configuration['wiltingPointVariableName'],
         #     cloneMapFileName=self.var.cloneMap)
         # th_wp = th_wp[landmask].reshape(self.var.nLayer,self.var.nCell)
-        # self.var.th_wp = np.broadcast_to(th_wp[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell))
+        # self.var.th_wp = np.broadcast_to(th_wp[None,None,:,:], (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # Residual water content
         th_res = vos.netcdf2PCRobjCloneWithoutTime(
@@ -88,7 +88,7 @@ class SoilParameters(object):
             self.lc_configuration['residualWaterContentVariableName'],
             cloneMapFileName=self.var.cloneMap)
         th_res = th_res[landmask].reshape(self.var.nLayer,self.var.nCell)
-        self.var.th_res = np.broadcast_to(th_res[None,None,:,:], (1, 1, self.var.nLayer, self.var.nCell))
+        self.var.th_res = np.broadcast_to(th_res[None,None,:,:], (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # # The following is adapted from AOS_ComputeVariables.m, lines 25
         # self.var.th_dry = self.var.th_wp / 2
@@ -101,7 +101,7 @@ class SoilParameters(object):
         van_genuchten_alpha = van_genuchten_alpha[landmask].reshape(self.var.nLayer,self.var.nCell)
         self.var.van_genuchten_alpha = np.broadcast_to(
             van_genuchten_alpha[None,None,:,:],
-            (1, 1, self.var.nLayer, self.var.nCell))
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # Van Genuchten lambda shape parameter
         van_genuchten_lambda = vos.netcdf2PCRobjCloneWithoutTime(
@@ -111,7 +111,7 @@ class SoilParameters(object):
         van_genuchten_lambda = van_genuchten_lambda[landmask].reshape(self.var.nLayer,self.var.nCell)
         self.var.van_genuchten_lambda = np.broadcast_to(
             van_genuchten_lambda[None,None,:,:],
-            (1, 1, self.var.nLayer, self.var.nCell))
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
     def compute_van_genuchten_coefficients(self):
         # compute van Genuchten n, m coefficients

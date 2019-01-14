@@ -12,14 +12,14 @@ class Drainage(object):
         self.var = Drainage_variable
 
         # TODO: percolation impedance
-        self.var.percolation_impedance = np.zeros((1, 1, self.var.nCell))
+        self.var.percolation_impedance = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
     def initial(self):
-        self.var.perc1to2 = np.zeros((1, 1, self.var.nCell))
-        self.var.perc2to3 = np.zeros((1, 1, self.var.nCell))
-        self.var.perc3toGW = np.zeros((1, 1, self.var.nCell))
-        self.var.interflow = np.zeros((1, 1, self.var.nCell))
-        self.var.deep_percolation = np.zeros((1, 1, self.var.nCell))
+        self.var.perc1to2 = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.perc2to3 = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.perc3toGW = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.interflow = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.deep_percolation = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
     def dynamic(self):
 
@@ -51,9 +51,9 @@ class Drainage(object):
         
         # Initialize top- to subsoil flux (accumulated value for all sub-steps)
         # Initialize fluxes out of subsoil (accumulated value for all sub-steps)
-        self.var.perc1to2 = np.zeros((1, 1, self.var.nCell))
-        self.var.perc2to3 = np.zeros((1, 1, self.var.nCell))
-        self.var.perc3toGW = np.zeros((1, 1, self.var.nCell))
+        self.var.perc1to2 = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.perc2to3 = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.perc3toGW = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
         # Start iterating
         for i in xrange(no_sub_steps):            
@@ -119,13 +119,13 @@ class Drainage(object):
 #         self.var = Drainage_variable
 
 #     def initial(self):
-#         # self.var.FluxOut = np.zeros((self.var.nFarm, self.var.nLC, self.var.nLayer, self.var.nCell))
-#         self.var.deep_percolation = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
-#         self.var.Recharge = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         # self.var.FluxOut = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
+#         self.var.deep_percolation = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+#         self.var.Recharge = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         # self.var.RechargeVol = np.zeros((self.var.nFarm, self.var.nCell))
         
 #     def compute_dthdt(self, th, th_s, th_fc, th_fc_adj, tau):
-#         dthdt = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         dthdt = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         cond1 = ne.evaluate("th <= th_fc_adj")
 #         dthdt[cond1] = 0
 #         cond2 = ne.evaluate("(~cond1) & (th >= th_s)")
@@ -140,7 +140,7 @@ class Drainage(object):
 #         """Function to redistribute stored soil water"""
 #         # dims = self.var.th.shape
 #         thnew = np.copy(self.var.th)
-#         drainsum = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         drainsum = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         for comp in range(self.var.nComp):
 
 #             # Calculate drainage ability of compartment ii
@@ -151,7 +151,7 @@ class Drainage(object):
 
 #             # Check drainage ability of compartment ii against cumulative
 #             # drainage from compartments above (Lines 45-52 in AOS_Drainage.m)
-#             excess = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#             excess = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #             prethick = self.var.dzsum[comp] - self.var.dz[comp]
 #             drainmax = dthdt * 1000 * prethick
 #             drainability = (drainsum <= drainmax)
@@ -171,7 +171,7 @@ class Drainage(object):
 #             # ability equal to cumulative drainage (Lines 70-85 in AOS_Drainage.m)
 #             cond6 = np.logical_not(drainability)
 #             dthdt[cond6] = np.divide(drainsum, 1000 * prethick, out=np.zeros_like(drainsum), where=prethick!=0)[cond6]
-#             thX = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#             thX = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #             cond61 = (cond6 & (dthdt <= 0))
 #             thX[cond61] = self.var.th_fc_adj[:,:,comp,:][cond61]
 #             cond62 = (cond6 & np.logical_not(cond61) & (self.var.tau_comp[:,:,comp,:] > 0))

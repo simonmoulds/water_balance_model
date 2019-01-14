@@ -15,7 +15,7 @@ class Irrigation(object):
         self.var = Irrigation_variable
 
     def initial(self):
-        arr_zeros = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.irrigation = np.copy(arr_zeros)
     #     self.var.irrigation_cumulative = np.copy(arr_zeros)
 

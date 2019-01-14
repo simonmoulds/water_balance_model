@@ -12,9 +12,10 @@ class Interception(object):
         self.var = Interception_variable
         
     def initial(self):
-        self.var.interception_storage = np.zeros((1, 1, self.var.nCell))
-        self.var.water_available_for_infiltration = np.zeros((1, 1, self.var.nCell))        
-        self.var.interception_evaporation = np.zeros((1, 1, self.var.nCell))
+        arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))  # make global parameter
+        self.var.interception_storage = arr_zeros.copy()
+        self.var.water_available_for_infiltration = arr_zeros.copy()
+        self.var.interception_evaporation = arr_zeros.copy()
         
     def compute_water_available_for_infiltration(self):
         # CWATM, interception.py        

@@ -33,26 +33,26 @@ class InitialCondition(object):
         th = th[landmask].reshape(self.var.nLayer, self.var.nCell)
         self.var.th = np.broadcast_to(
             th[None,None,...],
-            (1, 1, self.var.nLayer, self.var.nCell)).copy()
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell)).copy()
         self.var.wc = (
             self.var.th
             * self.var.root_depth)
 
     def initial_interception_storage(self):
         # TODO:
-        self.var.interception_storage = np.zeros((1, 1, self.var.nCell))
+        self.var.interception_storage = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
     def initial_surface_storage(self):
-        self.var.SurfaceStorage = np.zeros((1, 1, self.var.nCell))
+        self.var.SurfaceStorage = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
     def initial_snow_cover(self):
         # see CWATM, snow_cover.py, lines 143-150
         num_snow_layers = 7
-        self.var.snow_cover_layer = np.zeros((1, 1, int(num_snow_layers), self.var.nCell))
+        self.var.snow_cover_layer = np.zeros((self.var.nFarm, self.var.nCrop, int(num_snow_layers), self.var.nCell))
         self.var.snow_cover = np.sum(self.var.snow_cover_layer, axis=2) / float(num_snow_layers)
 
     def initial_frost_index(self):
-        self.var.frost_index = np.zeros((1, 1, self.var.nCell))
+        self.var.frost_index = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         
     def initial(self):
         pass

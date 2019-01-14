@@ -12,8 +12,8 @@ class CapillaryRise(object):
         self.capillary_rise = True  # TODO: put this in configuration options
         
     def initial(self):
-        self.var.capillary_rise_frac = np.zeros((1, 1, self.var.nCell))
-        self.var.capillary_rise_from_gw = np.zeros((1, 1, self.var.nCell))
+        self.var.capillary_rise_frac = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        self.var.capillary_rise_from_gw = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
     def compute_capillary_rise_frac(self):
         
@@ -146,7 +146,7 @@ class CapillaryRise(object):
 #         self.var = CapillaryRise_variable
 
 #     def initial(self):
-#         self.var.CrTot = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         self.var.CrTot = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 
 #     def maximum_capillary_rise(self, ksat, aCR, bCR, zGW, z):
 #         """Function to compute maximum capillary rise for a given soil 
@@ -160,7 +160,7 @@ class CapillaryRise(object):
 #           z    : depth to midpoint of the soil layer
 
 #         """
-#         MaxCR = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         MaxCR = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         cond1 = ((ksat > 0) & (zGW > 0) & ((zGW - z) < 4))
 #         cond11 = (cond1 & (z >= zGW))
 #         MaxCR[cond11] = 99            
@@ -178,7 +178,7 @@ class CapillaryRise(object):
 
 #         # calculate driving force
 #         # Df = driving_force(th, th_fc_adj, th_wp, fshape_cr)
-#         Df = np.ones((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         Df = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         cond11 = cond1 & ((th >= th_wp) & (fshape_cr > 0))
 #         Df[cond11] = (1 - (((th - th_wp) / (th_fc_adj - th_wp)) ** fshape_cr))[cond11]
 #         Df = np.clip(Df, 0, 1)
@@ -199,7 +199,7 @@ class CapillaryRise(object):
 #         # Krel = relative_hydraulic_conductivity(th, th_fc, th_wp)
 #         thThr = (th_wp + th_fc) / 2
 #         cond12 = cond1 & (th < thThr)
-#         Krel = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         Krel = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         cond121 = cond12 & np.logical_not(((th <= th_wp) | (thThr <= th_wp)))
 #         Krel[cond121] = ((th - th_wp) / (thThr - th_wp))[cond121]
 #         # % Calculate relative hydraulic conductivity
@@ -217,7 +217,7 @@ class CapillaryRise(object):
 #         # end
 
 #         # Check if room is available to store water from capillary rise
-#         arr_zeros = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#         arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #         dth = np.copy(arr_zeros)
 #         dth[cond1] = (th_fc_adj - th)[cond1]                
 #         dth = np.round((dth * 1000) / 1000)
@@ -245,8 +245,8 @@ class CapillaryRise(object):
 #         """
 #         if self.var.groundwater.WaterTable:
 
-#             zGW = np.broadcast_to(self.var.groundwater.zGW[None,None,:], (self.var.nFarm, self.var.nLC, self.var.nCell))
-#             # zGW = self.var.zGW[None,:] * np.ones((self.var.nLC))[:,None]
+#             zGW = np.broadcast_to(self.var.groundwater.zGW[None,None,:], (self.var.nFarm, self.var.nCrop, self.var.nCell))
+#             # zGW = self.var.zGW[None,:] * np.ones((self.var.nCrop))[:,None]
 #             zBot = np.sum(self.var.dz)
 #             zBotMid = zBot - (self.var.dz[-1] / 2)  # depth to midpoint of bottom layer
 #             thnew = np.copy(self.var.th)
@@ -271,7 +271,7 @@ class CapillaryRise(object):
 #             idx = np.arange(0, (self.var.layerIndex[-1] + 1))
 #             zTopLayer = np.sum(self.var.zLayer[idx])
 #             layeri = self.var.layerIndex[-1]  # layer number of bottom compartment
-#             LimCR = np.zeros((self.var.nLC, self.var.nCell))
+#             LimCR = np.zeros((self.var.nCrop, self.var.nCell))
 
 #             while np.any(zTopLayer < zGW) & (layeri < (self.var.nLayer - 1)):
 #                 layeri += 1
@@ -285,7 +285,7 @@ class CapillaryRise(object):
 #                 zTopLayer += self.var.zLayer[layeri]  # top of the next layer not included in the soil water balance
 
 #             compi = self.var.nComp - 1
-#             CrTot = np.zeros((self.var.nFarm, self.var.nLC, self.var.nCell))
+#             CrTot = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
 #             while ((np.any(np.round(MaxCR * 1000) > 0)) & (np.any(np.round(self.var.FluxOut[:,:,compi,:] * 1000) == 0)) & (compi >= 0)):
 
 #                 cond1 = ((np.round(MaxCR * 1000) > 0) & (np.round(self.var.FluxOut[:,:,compi,:] * 1000) == 0))
