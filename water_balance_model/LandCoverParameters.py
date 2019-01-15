@@ -298,8 +298,8 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         self.soil_parameters_module = SoilParameters(var, config_section_name)
         self.topo_parameters_module = TopoParametersManagedLand(var, config_section_name)
         
-        self.crop_parameters_module = CropParameters(var, self.configuration)
         self.farm_parameters_module = FarmParameters(var, self.configuration)
+        self.crop_parameters_module = CropParameters(var, self.configuration)
         
         self.cover_fraction_module = CoverFraction(var, self.configuration)
         self.crop_coefficient_module = CropCoefficient(var, self.configuration)
@@ -312,6 +312,10 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
     def initial(self):
         self.soil_parameters_module.initial()
         self.topo_parameters_module.initial()
+
+        self.farm_parameters_module.initial()
+        self.crop_parameters_module.initial()
+        
         self.cover_fraction_module.initial()
         self.crop_coefficient_module.initial()
         self.intercept_capacity_module.initial()
@@ -324,6 +328,10 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
     def dynamic(self):
         self.soil_parameters_module.dynamic()
         self.topo_parameters_module.dynamic()
+
+        self.farm_parameters_module.dynamic()
+        self.crop_parameters_module.dynamic()
+        
         self.cover_fraction_module.dynamic()
         self.crop_coefficient_module.dynamic()
         self.intercept_capacity_module.dynamic()

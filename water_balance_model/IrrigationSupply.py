@@ -5,61 +5,22 @@ import os
 import time
 import calendar
 import numpy as np
-from hydro_model_builder import VirtualOS as vos
+import VirtualOS as vos
 from aquacrop.Messages import *
 import logging
 logger = logging.getLogger(__name__)
-
-class DieselPrice(object):
-
-    def __init__(self, DieselPrice_variable):
-        self.var = DieselPrice_variable        
-        self.var.DieselPriceFileNC = (
-            str(self.var._configuration.priceOptions['dieselPriceNC']))
-        self.var.DieselPriceVarName = (
-            str(self.var._configuration.priceOptions['dieselPriceVariableName']))
-
-    def initial(self):
-        self.var.DieselPrice = np.zeros((self.var.nCell))
-
-    def reset_initial_conditions(self):
-        pass
-    
-    def set_diesel_price(self):
-        if self.var._modelTime.timeStepPCR == 1 or self.var._modelTime.doy == 1:
-            date = '%04i-%02i-%02i' % (self.var._modelTime.year, 1, 1)
-            if not self.var.DieselPriceFileNC == "None":
-                diesel_price = vos.netcdf2PCRobjClone(
-                    self.var.DieselPriceFileNC,
-                    self.var.DieselPriceVarName,
-                    date,
-                    useDoy = None,
-                    cloneMapFileName = self.var.cloneMap,
-                    LatitudeLongitude = True)
-                diesel_price = diesel_price[self.var.landmask]
-                # diesel_price = np.broadcast_to(
-                #     diesel_price[None,None,:],            
-                #     (self.var.nFarm, self.var.nCrop, self.var.nCell))
-                self.var.DieselPrice = diesel_price
-
-    def dynamic(self):
-        self.set_diesel_price()
 
 class IrrigationSupply(object):
 
     def __init__(self, IrrigationSupply_variable):
         self.var = IrrigationSupply_variable
-        self.diesel_price_module = DieselPrice(IrrigationSupply_variable)
     
     def initial(self):
-        self.diesel_price_module.initial()
         arr_zeros = np.zeros((self.var.nFarm, self.var.nCell))
         self.var.GwPumpingVol = arr_zeros.copy()
         self.var.SwPumpingVol = arr_zeros.copy()
         self.var.UnmetIrrigationDemand = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.UnmetIrrigationDemandDays = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
-        # self.var.UnmetIrrigationDemand = arr_zeros.copy()
-        # self.var.UnmetIrrigationDemandDays = arr_zeros.copy()
         
     def reset_initial_conditions(self):
         if self.var.IsFirstDayOfYear:
@@ -90,7 +51,7 @@ class IrrigationSupply(object):
     def irrigation_supply(self):
 
         # Compute irrigation demand in m3 (depth -> volume)
-        irrigation_depth = self.var.Irr / 1000
+        irrigation_depth = self.var.irrigation # / 1000
         irrigation_demand = np.multiply(
             irrigation_depth,
             self.var.FarmCropArea,
@@ -190,12 +151,11 @@ class IrrigationSupply(object):
             where=self.var.FarmCropArea > 0)
         irrigation_supply *= 1000.  # m -> mm
         # irrigation_supply = np.round(irrigation_supply * 1000., decimals=3)
-        self.var.Irr = np.clip(self.var.Irr, None, irrigation_supply)  # farm, crop, cell        
+        self.var.irrigation = self.var.irrigation.clip(None, irrigation_supply)  # farm, crop, cell        
 
         # compute irrigation expenses
         self.irrigation_expenditure()
         
     def dynamic(self):
         self.reset_initial_conditions()
-        self.diesel_price_module.dynamic()
         self.irrigation_supply()

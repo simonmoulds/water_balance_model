@@ -83,8 +83,8 @@ class CanalAccess(object):
         self.configuration = configuration
         
     def initial(self):
-        initialCanalAccessNC = str(self.configuration['initialCanalAccessNC'])
-        canal_access_varname = 'canal_access'
+        initialCanalAccessNC = str(self.configuration['initialCanalAccessInputFile'])
+        canal_access_varname = str(self.configuration['initialCanalAccessVariableName'])
         try:
             canal_access = vos.netcdf2PCRobjCloneWithoutTime(
                 initialCanalAccessNC,
@@ -104,20 +104,54 @@ class CanalAccess(object):
     def dynamic(self):
         pass
 
+class DieselPrice(object):
+    def __init__(self, var, configuration):
+        self.var = var
+        self.configuration = configuration
+        self.DieselPriceFileNC = (
+            str(self.configuration['dieselPriceInputFile']))
+        self.DieselPriceVarName = (
+            str(self.configuration['dieselPriceVariableName']))
+
+    def initial(self):
+        self.var.DieselPrice = np.zeros((self.var.nCell))
+
+    def reset_initial_conditions(self):
+        pass
+    
+    def set_diesel_price(self):
+        start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
+        start_of_year = (self.var._modelTime.doy == 1)
+        if not self.DieselPriceFileNC == "None":
+            if start_of_model_run or start_of_year:
+                date = datetime.datetime(self.var._modelTime.year, 1, 1, 0, 0, 0)
+                diesel_price = vos.netcdf2PCRobjClone(
+                    self.DieselPriceFileNC,
+                    self.DieselPriceVarName,
+                    date,
+                    useDoy = None,
+                    cloneMapFileName = self.var.cloneMap,
+                    LatitudeLongitude = True)
+                diesel_price = diesel_price[self.var.landmask]
+                self.var.DieselPrice = diesel_price
+
+    def dynamic(self):
+        self.set_diesel_price()
+        print np.max(self.var.DieselPrice)
+        
 # # ***TODO***:
 # class FarmCategory(object):
 #     """Class to represent farm category data"""
 # class FarmArea(object):
 #     """Class to represent the area of each farm"""
-
+        
 class FarmParameters(object):
     def __init__(self, var, configuration):
         self.var = var
         self.configuration = configuration
-        
         self.var.nFarm = int(self.configuration['nFarm'])
         self.var.nFarmSizeCategory = int(self.configuration['nFarmSizeCategory'])
-        self.var.StartOfYear = 305  # TODO: check this is right, and add to configuration
+        self.var.start_of_agricultural_year = int(self.configuration['startOfAgriculturalYear'])
         
         self.FarmAreaFileNC = (
             str(self.configuration['farmAreaInputFile']))
@@ -140,6 +174,7 @@ class FarmParameters(object):
 
         self.tubewell_module = Tubewells(var, configuration)
         self.canal_access_module = CanalAccess(var, configuration)
+        self.diesel_price_module = DieselPrice(var, configuration)
         
     def initial(self):
         self.set_farm_category()
@@ -147,17 +182,18 @@ class FarmParameters(object):
         self.set_farm_area()
         self.tubewell_module.initial()
         self.canal_access_module.initial()
+        self.diesel_price_module.initial()
         
     def update_first_day_of_year(self):
         isLeapYear = calendar.isleap(self.var._modelTime.year)
-        if (isLeapYear & (self.var.StartOfYear >= 60)):
+        if (isLeapYear & (self.var.start_of_agricultural_year >= 60)):
             start_of_year += 1
             
         self.var.IsFirstDayOfYear = False
         self.var.IsLastDayOfYear = False
-        if self.var._modelTime.doy == self.var.StartOfYear:
+        if self.var._modelTime.doy == self.var.start_of_agricultural_year:
             self.var.IsFirstDayOfYear = True
-        elif ((self.var._modelTime.doy + 1) == self.var.StartOfYear):
+        elif ((self.var._modelTime.doy + 1) == self.var.start_of_agricultural_year):
             self.var.IsLastDayOfYear = True
 
     def set_farm_area(self):
@@ -199,7 +235,7 @@ class FarmParameters(object):
                     self.var.FarmArea = farm_area.copy()
                 
     def set_farm_category_area(self):
-        if not self.var.FarmCategoryAreaFileNC == "None":
+        if not self.FarmCategoryAreaFileNC == "None":
             start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
             start_of_year = (self.var._modelTime.doy == 1)
             if self.AnnualChangeInFarmCategoryArea:
@@ -237,7 +273,7 @@ class FarmParameters(object):
                     self.var.FarmCategoryArea = farm_cat_area.copy()
             
     def set_farm_category(self):
-        if not self.var.FarmCategoryFileNC == "None":
+        if not self.FarmCategoryFileNC == "None":
             start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
             start_of_year = (self.var._modelTime.doy == 1)
             if self.AnnualChangeInFarmCategory:
@@ -281,3 +317,4 @@ class FarmParameters(object):
         self.set_farm_category_area()
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
+        self.diesel_price_module.dynamic()

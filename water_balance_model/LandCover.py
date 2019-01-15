@@ -17,6 +17,7 @@ from LandCoverParameters import *
 from Drainage import Drainage
 from Interception import *
 from Irrigation import *
+from IrrigationSupply import *
 from Infiltration import *
 from CapillaryRise import CapillaryRise
 from Evapotranspiration import *
@@ -149,9 +150,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
 
         # demand vs supply
         self.irrigation_demand_module = IrrigationNonPaddy(self)
-        # self.tubewell_module = Tubewells(self)
-        # self.canal_access_module = CanalAccess(self)
-        # self.irrigation_supply_module = IrrigationSupply(self)
+        self.irrigation_supply_module = IrrigationSupply(self)
         
         self.infiltration_module = Infiltration(self)
         self.capillary_rise_module = CapillaryRise(self)
@@ -172,7 +171,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.interception_module.initial()
         
         self.irrigation_demand_module.initial()
-        # self.tubewell_module.initial()
+        self.irrigation_supply_module.initial()
         
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
@@ -187,7 +186,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.interception_module.dynamic()
         
         self.irrigation_demand_module.dynamic()
-        # self.tubewell_module.dynamic()
+        self.irrigation_supply_module.dynamic()
         
         self.infiltration_module.dynamic()
         self.capillary_rise_module.dynamic()
