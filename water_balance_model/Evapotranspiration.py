@@ -132,7 +132,7 @@ class ActualEvapotranspiration(object):
 
         # CWATM, soil.py, lines 525-531
         self.var.ETact = self.var.Eact + self.var.Tact + self.var.EWact
-        self.var.ETpot = self.var.ETpot.clip(self.var.ETact, None)
+        self.var.ETpot = self.var.ETpot.clip(self.var.ETact, None)        
         
 class Evapotranspiration(object):
     def __init__(self, Evapotranspiration_variable):

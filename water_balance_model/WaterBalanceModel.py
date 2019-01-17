@@ -5,10 +5,11 @@ import os
 import numpy as np
 import pcraster as pcr
 import VirtualOS as vos
-from hydro_model_builder.Model import Model
+from Model import Model
 
 from Meteo import Meteo
 from Groundwater import Groundwater
+from CanalSupply import CanalSupply
 from LandSurface import LandSurface
 
 import logging
@@ -20,14 +21,16 @@ class WaterBalanceModel(Model):
             configuration,
             modelTime,
             initialState)
-        
+
         self.meteo_module = Meteo(self)
         self.groundwater_module = Groundwater(self)
+        self.canal_module = CanalSupply(self)
         self.lc_module = LandSurface(self)
         
     def initial(self):
         self.meteo_module.initial()
         self.groundwater_module.initial()
+        self.canal_module.initial()
         self.lc_module.initial()
         self.get_model_dimensions()
         
@@ -45,4 +48,5 @@ class WaterBalanceModel(Model):
     def dynamic(self):
         self.meteo_module.dynamic()
         self.groundwater_module.dynamic()
+        self.canal_module.dynamic()
         self.lc_module.dynamic()        

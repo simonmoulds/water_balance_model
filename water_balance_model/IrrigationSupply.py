@@ -34,7 +34,7 @@ class IrrigationSupply(object):
         
     def diesel_pump_cost(self):
         fuel_efficiency = 1.
-        unit_fuel_consumption = (0.1133 * self.var.zGW) + 0.7949
+        unit_fuel_consumption = (0.1133 * self.var.groundwater.zGW) + 0.7949
         unit_fuel_consumption = unit_fuel_consumption * fuel_efficiency / 102.87
         self.var.DieselPumpCost = (
             unit_fuel_consumption
@@ -73,9 +73,9 @@ class IrrigationSupply(object):
         # The following variables (up to total_irrigation_supply) have
         # dimensions (farm, cell)
         canal_supply = np.broadcast_to(
-            self.var.CanalSupply,
+            self.var.canal.CanalSupply,
             (self.var.nFarm, self.var.nCell)).copy()
-        canal_supply *= self.var.CanalAccess
+        canal_supply[np.logical_not(self.var.CanalAccess)] = 0
         canal_demand = np.clip(canal_supply, 0, total_irrigation_demand)
 
         # Attempt to meet the outstanding demand from groundwater
@@ -92,12 +92,12 @@ class IrrigationSupply(object):
             * 129574.1
             * self.var.PumpHorsePower)
         max_groundwater_supply_divs = (
-            self.var.zGW
+            self.var.groundwater.zGW
             + np.divide(
                 (255.5998 * self.var.TubewellOperatingHours ** 2),
-                (self.var.zGW ** 2 * 4 ** 4),
+                (self.var.groundwater.zGW ** 2 * 4 ** 4),
                 out=np.zeros((self.var.nFarm, self.var.nCell)),
-                where=self.var.zGW>0))
+                where=self.var.groundwater.zGW>0))
         max_groundwater_supply = np.divide(
             max_groundwater_supply_divd,
             max_groundwater_supply_divs,

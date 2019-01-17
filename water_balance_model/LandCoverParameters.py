@@ -13,6 +13,7 @@ from CropParameters import *
 from FarmParameters import *
 from IrrigationParameters import *
 from FieldManagementParameters import *
+from PriceData import *
 
 class BaseClass(object):
     def __init__(self, var, configuration):
@@ -158,16 +159,22 @@ class RootFraction(BaseClass):
             self.rootFractionVarName,
             cloneMapFileName = self.var.cloneMap) # nlayer, nlat, nlon
         root_fraction = root_fraction[landmask].reshape(2,self.var.nCell)
+        root_fraction = np.broadcast_to(
+            root_fraction[None,None,:,:],
+            (self.var.nFarm, self.var.nCrop, 2, self.var.nCell))
 
         # scale root fraction - adapted from CWATM
         # landcoverType.py lines 311-319
 
         # 1 - add top layer to root fraction input data
-        root_fraction_adj = np.zeros((self.var.nLayer, self.var.nCell))
-        top_layer_fraction = self.var.root_depth[0] / (self.var.root_depth[0] + self.var.root_depth[1])
-        root_fraction_adj[0] = top_layer_fraction * root_fraction[0]
-        root_fraction_adj[1] = (1. - top_layer_fraction) * root_fraction[1]
-        root_fraction_adj[2] = (1. - root_fraction[1])
+        root_fraction_adj = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
+        top_layer_fraction = np.divide(
+            self.var.root_depth[...,0,:],
+            (self.var.root_depth[...,0,:] + self.var.root_depth[...,1,:])
+        )        
+        root_fraction_adj[...,0,:] = top_layer_fraction * root_fraction[...,0,:]
+        root_fraction_adj[...,1,:] = (1. - top_layer_fraction) * root_fraction[...,1,:]
+        root_fraction_adj[...,2,:] = (1. - root_fraction[...,1,:])
 
         # 2 - scale so that the total root fraction sums to one
         root_fraction_adj /= np.sum(root_fraction_adj, axis=0)  # rhs is broadcast automatically
@@ -178,9 +185,40 @@ class RootFraction(BaseClass):
 
 class MaxRootDepth(BaseClass):
     def initial(self):
+        self.var.max_root_depth = np.ones((self.var.nCell)) * 1.
+
+    def compute_root_depth(self):
+        """Function to compute the root depth in each soil 
+        layer
+        """
+        self.var.root_depth = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
+        self.var.root_depth[...,0,:] = self.var.soil_depth[...,0,:].copy()
+        h1 = np.maximum(
+            self.var.soil_depth[...,0,:],
+            self.var.max_root_depth - self.var.root_depth[...,0,:]
+        )
+        self.var.root_depth[...,1,:] = np.minimum(
+            (self.var.soil_depth[...,1,:]
+             + self.var.soil_depth[...,2,:]
+             - 0.05),
+            h1
+        )
+        self.var.root_depth[...,2,:] = np.maximum(
+            0.05,
+            (self.var.soil_depth[...,1,:]
+             + self.var.soil_depth[...,2,:]
+             - self.var.root_depth[...,1,:])
+        )
+        
+    def dynamic(self):
+        pass
+    
+class MaxRootDepthFromFile(MaxRootDepth):
+    def initial(self):
         self.maxRootDepthNC = str(self.configuration['maxRootDepthInputFile'])
         self.maxRootDepthVarName = str(self.configuration['maxRootDepthVariableName'])
         self.read_max_root_depth()
+        self.compute_root_depth()
         
     def read_max_root_depth(self):
         max_root_depth = vos.netcdf2PCRobjCloneWithoutTime(
@@ -188,19 +226,22 @@ class MaxRootDepth(BaseClass):
             self.maxRootDepthVarName,
             cloneMapFileName = self.var.cloneMap)  # nlat, nlon
         max_root_depth = max_root_depth[self.var.landmask]
+        self.var.max_root_depth = np.broadcast_to(
+            max_root_depth[None,None,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nCell))
 
-        self.var.root_depth = np.zeros((self.var.nLayer, self.var.nCell))
-        self.var.root_depth[0] = self.var.soil_depth[0].copy()
-        h1 = np.maximum(self.var.soil_depth[1], max_root_depth - self.var.root_depth[0])
-        self.var.root_depth[1] = np.minimum(
-            self.var.soil_depth[1] + self.var.soil_depth[2] - 0.05,
-            h1)
-        self.var.root_depth[2] = np.maximum(
-            0.05,
-            self.var.soil_depth[1] + self.var.soil_depth[2] - self.var.root_depth[1])
+class MaxRootDepthDynamic(MaxRootDepth):
+    def initial(self):
+        self.compute_max_root_depth()
+        self.compute_root_depth()
         
+    def compute_max_root_depth(self):
+        self.var.max_root_depth = self.var.Zmin # TEMPORARY
+    
     def dynamic(self):
-        pass
+        self.var.max_root_depth[self.var.GrowingSeasonIndex] = self.var.Zmin[self.var.GrowingSeasonIndex]
+        self.var.max_root_depth[np.logical_not(self.var.GrowingSeasonIndex)] = 1.  # Global Crop Water Model
+        self.compute_root_depth()
 
 class LandCoverParameters(object):
     def __init__(self, LandCoverParameters_variable, config_section_name):
@@ -238,7 +279,7 @@ class NaturalVegetationParameters(LandCoverParameters):
         self.cover_fraction_module = CoverFraction(var, self.configuration)
         self.crop_coefficient_module = CropCoefficient(var, self.configuration)
         self.intercept_capacity_module = InterceptionCapacity(var, self.configuration)
-        self.root_depth_module = MaxRootDepth(var, self.configuration)            
+        self.root_depth_module = MaxRootDepthFromFile(var, self.configuration)            
         self.root_fraction_module = RootFraction(var, self.configuration)
         self.field_mgmt_parameters_module = FieldManagementParameters(var, config_section_name)
 
@@ -268,7 +309,7 @@ class ManagedLandParameters(LandCoverParameters):
         self.cover_fraction_module = CoverFraction(var, self.configuration)
         self.crop_coefficient_module = CropCoefficient(var, self.configuration)
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
-        self.root_depth_module = MaxRootDepth(var, self.configuration)            
+        self.root_depth_module = MaxRootDepthFromFile(var, self.configuration)            
         self.root_fraction_module = RootFraction(var, self.configuration)
         self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, config_section_name)
         self.irrigation_parameters_module = IrrigationParameters(var, config_section_name)
@@ -297,14 +338,18 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         super(ManagedLandWithFarmerBehaviourParameters, self).__init__(var, config_section_name)
         self.soil_parameters_module = SoilParameters(var, config_section_name)
         self.topo_parameters_module = TopoParametersManagedLand(var, config_section_name)
+        self.cover_fraction_module = CoverFraction(var, self.configuration)
         
         self.farm_parameters_module = FarmParameters(var, self.configuration)
-        self.crop_parameters_module = CropParameters(var, self.configuration)
         
-        self.cover_fraction_module = CoverFraction(var, self.configuration)
-        self.crop_coefficient_module = CropCoefficient(var, self.configuration)
+        self.price_module = PriceData(var, self.configuration)
+        
+        self.crop_area_module = CropArea(var, self.configuration)
+        self.crop_parameters_module = CropParameters(var, self.configuration)
+        # self.growth_stage_module = GrowthStage(var)
+        # self.crop_coefficient_module = CropCoefficient(var, self.configuration)
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
-        self.root_depth_module = MaxRootDepth(var, self.configuration)            
+        self.root_depth_module = MaxRootDepthDynamic(var, self.configuration)
         self.root_fraction_module = RootFraction(var, self.configuration)
         self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, config_section_name)
         self.irrigation_parameters_module = IrrigationParameters(var, config_section_name)
@@ -312,12 +357,16 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
     def initial(self):
         self.soil_parameters_module.initial()
         self.topo_parameters_module.initial()
+        self.cover_fraction_module.initial()
 
         self.farm_parameters_module.initial()
+        
+        self.price_module.initial()
+        
+        self.crop_area_module.initial()
         self.crop_parameters_module.initial()
         
-        self.cover_fraction_module.initial()
-        self.crop_coefficient_module.initial()
+        # self.crop_coefficient_module.initial()
         self.intercept_capacity_module.initial()
         self.root_depth_module.initial()
         self.root_fraction_module.initial()
@@ -328,12 +377,16 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
     def dynamic(self):
         self.soil_parameters_module.dynamic()
         self.topo_parameters_module.dynamic()
+        self.cover_fraction_module.dynamic()
 
         self.farm_parameters_module.dynamic()
+
+        self.price_module.dynamic()
+        
+        self.crop_area_module.dynamic()
         self.crop_parameters_module.dynamic()
         
-        self.cover_fraction_module.dynamic()
-        self.crop_coefficient_module.dynamic()
+        # self.crop_coefficient_module.dynamic()
         self.intercept_capacity_module.dynamic()
 
 

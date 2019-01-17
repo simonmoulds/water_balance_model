@@ -4,7 +4,7 @@
 import os
 import numpy as np
 import calendar
-from hydro_model_builder import VirtualOS as vos
+import VirtualOS as vos
 
 import logging
 logger = logging.getLogger(__name__)

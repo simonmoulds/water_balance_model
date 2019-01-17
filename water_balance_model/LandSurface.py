@@ -5,27 +5,9 @@ import os
 import numpy as np
 import pcraster as pcr
 import VirtualOS as vos
-from hydro_model_builder.Model import Model
+from Model import Model
 
 from LandCover import *
-
-class GridCellArea(object):
-    def __init__(self, GridCellArea_variable):
-        self.var = GridCellArea_variable
-
-    def initial(self):
-        self.gridCellAreaNC = str(self.var._configuration.MASK_OUTLET['gridCellAreaInputFile'])
-        self.gridCellAreaVarName = str(self.var._configuration.MASK_OUTLET['gridCellAreaVariableName'])
-        self.read_grid_cell_area()
-        
-    def read_grid_cell_area(self):
-        self.var.grid_cell_area = vos.netcdf2PCRobjCloneWithoutTime(
-            self.gridCellAreaNC,
-            self.gridCellAreaVarName,
-            cloneMapFileName = self.var.cloneMap)[self.var.landmask]
-        
-    def dynamic(self):
-        pass
 
 class LandSurface(object):
     def __init__(self, LandSurface_variable):
@@ -52,15 +34,14 @@ class LandSurface(object):
             # 'irrPaddy',
             'irrNonPaddy'
         ]
-        self.force_cover_fraction_sum_to_equal_one = bool(int(self.var._configuration.LANDCOVER['forceCoverFractionSumToEqualOne']))
-        
-        self.grid_cell_area_module = GridCellArea(LandSurface_variable)
+        self.force_cover_fraction_sum_to_equal_one = bool(int(self.var._configuration.LANDCOVER['forceCoverFractionSumToEqualOne']))        
+        # self.grid_cell_area_module = GridCellArea(LandSurface_variable)
         
     def initial(self):
         for module in self.land_cover_module_names:
             self.land_cover_modules[module].initial()
 
-        self.grid_cell_area_module.initial()
+        # self.grid_cell_area_module.initial()        
         self.initialize_cover_fraction()
         self.initialize_land_cover_variables_to_aggregate()
         self.aggregate_land_cover_variables()

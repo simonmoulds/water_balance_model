@@ -8,7 +8,7 @@ from pcraster.framework import DynamicModel
 from pcraster.framework import DynamicFramework
 
 from DeterministicRunner import DeterministicRunner
-from hydro_model_builder.ModelTime import ModelTime
+from ModelTime import ModelTime
 from hydro_model_builder import disclaimer
 
 from Reporting import Reporting

@@ -21,6 +21,10 @@ from IrrigationSupply import *
 from Infiltration import *
 from CapillaryRise import CapillaryRise
 from Evapotranspiration import *
+from CropYield import CropYield
+from Income import Income
+from Investment import Investment
+from Accounting import Accounting
 
 class LandCover(object):
     def __init__(self, var, config_section_name):
@@ -28,12 +32,14 @@ class LandCover(object):
         self._modelTime = var._modelTime
         self.cloneMap = var.cloneMap
         self.landmask = var.landmask
+        self.grid_cell_area = var.grid_cell_area
         self.nLat, self.nLon, self.nCell = var.nLat, var.nLon, var.nCell
         self.nFarm, self.nCrop = 1, 1
 
         # attach meteorological and groundwater data to land cover object
         self.meteo = var.meteo_module
-        self.groundwater = var.groundwater_module        
+        self.groundwater = var.groundwater_module
+        self.canal = var.canal_module
 
     def initial(self):
         pass
@@ -148,7 +154,6 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.evapotranspiration_module = Evapotranspiration(self)
         self.interception_module = Interception(self)
 
-        # demand vs supply
         self.irrigation_demand_module = IrrigationNonPaddy(self)
         self.irrigation_supply_module = IrrigationSupply(self)
         
@@ -156,11 +161,10 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.capillary_rise_module = CapillaryRise(self)
         self.drainage_module = Drainage(self)
 
-        # # crop yield, farmer income
-        # self.crop_yield_module = CropYield(self)
-        # self.income_module = Income(self)
-        # self.investment_module = Investment(self)
-        # self.accounting_module = Accounting(self)
+        self.crop_yield_module = CropYield(self)
+        self.income_module = Income(self)
+        self.investment_module = Investment(self)
+        self.accounting_module = Accounting(self)
         
     def initial(self):
         self.lc_parameters_module.initial()
@@ -176,6 +180,11 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
         self.drainage_module.initial()
+
+        self.crop_yield_module.initial()
+        self.income_module.initial()
+        self.investment_module.initial()
+        self.accounting_module.initial()
         
     def dynamic(self):
         self.lc_parameters_module.dynamic()
@@ -192,6 +201,11 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.capillary_rise_module.dynamic()
         self.drainage_module.dynamic()
 
+        self.crop_yield_module.dynamic()
+        self.income_module.dynamic()
+        self.investment_module.dynamic()
+        self.accounting_module.dynamic()
+        
 class SealedLand(LandCover):
     def __init__(self, var, config_section_name):
         super(SealedLand, self).__init__(

@@ -33,13 +33,16 @@ class SoilParameters(object):
             str(self.var._configuration.SOIL['soilDepthTwoVariableName']),
             cloneMapFileName=self.var.cloneMap)[self.var.landmask]
         soildepth2 = np.maximum(0.05, soildepth2)
-        self.var.soil_depth = np.stack([soildepth0, soildepth1, soildepth2])
+        soil_depth = np.stack([soildepth0, soildepth1, soildepth2])
 
         # CALIBRATION
         soildepth_factor = 1.   # TODO: read from configuration
-        self.var.soil_depth[1] *= soildepth_factor
-        self.var.soil_depth[2] *= soildepth_factor
-        self.var.soil_depth12 = self.var.soil_depth[1] + self.var.soil_depth[2]
+        soil_depth[1] *= soildepth_factor
+        soil_depth[2] *= soildepth_factor
+        # soil_depth12 = self.var.soil_depth[1] + self.var.soil_depth[2]
+        self.var.soil_depth = np.broadcast_to(
+            soil_depth[None,None,:,:],
+            (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
 
         # crop group number
         # TODO: would it make more sense to have this per crop?
