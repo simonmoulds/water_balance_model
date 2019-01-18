@@ -17,10 +17,6 @@ class Irrigation(object):
     def initial(self):
         arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.irrigation = np.copy(arr_zeros)
-    #     self.var.irrigation_cumulative = np.copy(arr_zeros)
-
-    # def reset_initial_conditions(self):
-    #     self.var.irrigation_cumulative[self.var.GrowingSeasonDayOne] = 0
         
     def dynamic(self):
         pass
@@ -47,7 +43,6 @@ class IrrigationPaddy(Irrigation):
         self.var.irrigation_efficiency = 1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency
         self.var.water_available_for_infiltration += self.var.irrigation
-
 
 class IrrigationNonPaddy(Irrigation):
     def dynamic(self):
@@ -86,3 +81,48 @@ class IrrigationNonPaddy(Irrigation):
         self.var.irrigation_efficiency = 1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency
         self.var.water_available_for_infiltration += self.var.irrigation
+
+class IrrigationMultipleCrops(Irrigation):
+    def dynamic(self):
+        self.var.irrigation[:] = 0.
+        cond1 = ((self.var.Bunds == 1) & (self.var.GrowingSeasonIndex))
+        alpha_depletion = 1.    # see CWATM waterdemand.py, lines 129-131
+        self.var.irrigation[cond1] = np.maximum(
+            (alpha_depletion
+             * self.var.zBund
+             - (self.var.SurfaceStorage  # check units
+                + self.var.water_available_for_infiltration)),  # check units
+            0.)[cond1]
+            
+        layer_index = np.array([0,1], np.int64)
+        readily_available_water = np.sum(
+            self.var.readily_available_water[...,layer_index,:],
+            axis=2)
+        total_available_water = np.sum(
+            self.var.total_available_water[...,layer_index,:],
+            axis=2)
+        critical_available_water = np.sum(
+            self.var.wc_crit[...,layer_index,:],
+            axis=2)
+        
+        cond2 = ((self.var.Bunds == 0) & (self.var.GrowingSeasonIndex))
+        cond21 = (cond2 & (readily_available_water < (alpha_depletion * critical_available_water)))
+        self.var.irrigation[cond21] = np.maximum(
+            alpha_depletion * total_available_water - readily_available_water,
+            0.)[cond21]
+
+        self.var.irrigation = self.var.irrigation.clip(None, self.var.potential_infiltration)
+
+        # from CWATM, waterdemand.py line 335: "ignore demand if less than 1m3" - ***TODO***
+
+        self.var.irrigation_efficiency = 1.  # TODO - put in input
+        self.var.irrigation /= self.var.irrigation_efficiency
+        # self.var.water_available_for_infiltration += self.var.irrigation
+
+        # # CWATM: "ignore demand if less that 1m3" - but I thought irrigation was a depth?
+
+        # self.var.irrigation_efficiency = 1.  # TODO - put in input
+        # self.var.irrigation /= self.var.irrigation_efficiency
+        # self.var.water_available_for_infiltration += self.var.irrigation
+        
+    

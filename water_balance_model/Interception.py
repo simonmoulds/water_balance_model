@@ -51,9 +51,9 @@ class Interception(object):
             self.var.Tpot
             - self.var.interception_evaporation)
 
-    def update_actual_evapotranspiration(self):
-        # update actual evaporation - TODO: find a way to put this Evapotranspiration class
-        self.var.ETact += self.var.interception_evaporation + self.var.snow_evap * 0.2
+    # def update_actual_evapotranspiration(self):
+    #     # update actual evaporation - TODO: find a way to put this Evapotranspiration class
+    #     self.var.ETact += self.var.interception_evaporation + self.var.snow_evap * 0.2
         
     def dynamic(self):
 
@@ -61,14 +61,14 @@ class Interception(object):
         self.compute_interception_evaporation_from_vegetation()
         self.update_interception_storage()
         self.update_potential_transpiration()
-        self.update_actual_evapotranspiration()
+        # self.update_actual_evapotranspiration()
 
 class InterceptionSealed(Interception):
     def dynamic(self):
         self.compute_water_available_for_infiltration()
         self.compute_interception_evaporation_from_sealed_land()
         self.update_interception_storage()
-        self.update_actual_evapotranspiration()
+        # self.update_actual_evapotranspiration()
 
 class InterceptionWater(InterceptionSealed):
     pass

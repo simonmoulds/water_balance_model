@@ -56,7 +56,7 @@ class ActualEvapotranspiration(object):
         self.var.Tact = np.copy(arr_zeros)
         self.var.ETact = np.copy(arr_zeros)
         self.var.EWact = np.copy(arr_zeros)
-        self.var.snow_evap = np.copy(arr_zeros)
+        # self.var.snow_evap = np.copy(arr_zeros)
         
     def compute_open_water_evaporation(self):
         # CWATM, soil.py, lines 149-171
@@ -71,16 +71,9 @@ class ActualEvapotranspiration(object):
 
         # CWATM, soil.py, lines 210-251
         
-        # # broadcast crop depletion factor to compartments
-        # p = np.broadcast_to(
-        #     self.var.root_zone_depletion_factor[:,:,None,:],
-        #     (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
+        # compute total and readily available water in the top two soil layers
+        # self.var.root_zone_water_module.dynamic()
         
-        # # work out critical water content (mm)
-
-        # # CWATM, soil.py, lines 210-212        
-        # wCrit = ((1 - p) * (self.var.wc_fc - self.var.wc_wp)) + self.var.wc_wp
-
         # transpiration reduction factor, CWATM, soil.py, lines
         Ks = np.divide(
             (self.var.wc - self.var.wc_wp),
@@ -92,11 +85,7 @@ class ActualEvapotranspiration(object):
         Ks_sum = np.sum(Ks, axis=2)
         Ks_sum = Ks_sum.clip(0., 1.)
         TactMax = self.var.Tpot * Ks_sum
-
-        self.var.FrostIndex = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))  # FIXME
-        self.var.FrostIndexThreshold = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * 999.  # FIXME - currently just a large number
-
-        TactMax = np.where(self.var.FrostIndex > self.var.FrostIndexThreshold, 0., TactMax)
+        TactMax = np.where(self.var.frost_index > self.var.frost_index_threshold, 0., TactMax)
         Tact = (
             np.broadcast_to(
                 TactMax[:,:,None,:],
@@ -105,33 +94,36 @@ class ActualEvapotranspiration(object):
         Tact = Tact.clip(None, self.var.wc - self.var.wc_wp)
         Tact = Tact.clip(0., None)
         self.var.Tact_comp = Tact.copy()
-        self.var.Tact = np.sum(self.var.Tact_comp, axis=2)  # sum along compartment axis
-        
+        self.var.Tact = np.sum(self.var.Tact_comp, axis=2)  # sum along compartment axis        
         self.var.wc -= self.var.Tact_comp
         self.var.th -= np.divide(self.var.Tact_comp, self.var.root_depth * 1000)
 
     def compute_actual_soil_evaporation(self):
         # CWATM, soil.py, lines 252-260
         self.var.Eact = np.minimum(self.var.Epot, np.maximum(0., self.var.wc[...,0,:] - self.var.wc_res[...,0,:]))
-        self.var.Eact = np.where(self.var.FrostIndex > self.var.FrostIndexThreshold, 0., self.var.Eact)
+        self.var.Eact = np.where(self.var.frost_index > self.var.frost_index_threshold, 0., self.var.Eact)
         self.var.Eact[self.var.SurfaceStorage > 0.] = 0  # lines 257-258
         self.var.wc[...,0,:] -= self.var.Eact
         self.var.th[...,0,:] -= np.divide(
             self.var.Eact,
-            self.var.root_depth[...,0,:] * 1000,
+            self.var.root_depth[...,0,:],
             out=np.zeros_like(self.var.Eact))
 
     def dynamic(self):
-        # self.compute_root_zone_water()
-        self.var.root_zone_water_module.update_root_zone_water_content()
-        self.var.root_zone_water_module.compute_critical_water_content()
-        # self.compute_root_zone_water()
+        # # self.compute_root_zone_water()
+        # self.var.root_zone_water_module.update_root_zone_water_content()
+        # self.var.root_zone_water_module.compute_critical_water_content()
+        # # self.compute_root_zone_water()
+        
         self.compute_open_water_evaporation()  # TODO: is this is the right place? where is openWaterEvap computed in CWATM? SurfaceStorage not yet updated for current time step
         self.compute_actual_transpiration()
         self.compute_actual_soil_evaporation()
 
         # CWATM, soil.py, lines 525-531
         self.var.ETact = self.var.Eact + self.var.Tact + self.var.EWact
+        
+        self.var.ETact += self.var.interception_evaporation + self.var.snow_evap * 0.2  # CHECK
+        
         self.var.ETpot = self.var.ETpot.clip(self.var.ETact, None)        
         
 class Evapotranspiration(object):

@@ -6,32 +6,29 @@ import shutil
 from types import NoneType
 from collections import OrderedDict
 from OutputNetCDF import *
-# import variable_list as varDicts
-# import variable_list
 
 import logging
 logger = logging.getLogger(__name__)
 
 class Reporting(object):
-    
-    def __init__(self, configuration, model, modelTime, variable_list, run_id=None):
 
+    def __init__(self, model, output_dir, netcdf_attr, reporting_options, variable_list, run_id=None):
         self._model = model
-        self._modelTime = modelTime
-        self.configuration = configuration
-        self.initiate_reporting(variable_list, run_id)
+        self._modelTime = model._modelTime
+        self.output_dir = output_dir
+        self.reporting_options = reporting_options
+        self.initiate_reporting(netcdf_attr, variable_list, run_id)        
 
     def create_netcdf_file(self, var, suffix):
-        ncFile = self.outNCDir + "/" + str(var) + str(suffix) + ".nc"
+        ncFile = self.output_dir + "/" + str(var) + str(suffix) + ".nc"
         self.netcdfObj.create_netCDF(ncFile, var)
 
-    def initiate_reporting(self, variable_list, run_id):
+    def initiate_reporting(self, netcdf_attr, variable_list, run_id):
         """Function to create netCDF files for each output 
         variable
         """
-        self.outNCDir  = self.configuration.outNCDir
         self.netcdfObj = OutputNetCDF(
-            self.configuration,
+            netcdf_attr,
             self._model.dimensions,
             variable_list)
 
@@ -69,7 +66,7 @@ class Reporting(object):
             self.variables_for_report.remove("None")
 
     def get_variable_names_for_reporting(self, option):
-        var_names = [str(var.strip()) for var in self.configuration.reportingOptions[option].split(',')]
+        var_names = [str(var.strip()) for var in self.reporting_options[option].split(',')]
         return list(set(var_names))
     
     def initiate_daily_total_reporting(self):
@@ -99,7 +96,7 @@ class Reporting(object):
     def initiate_month_end_reporting(self):
         self.outMonthEndNC = ["None"]
         try:
-            self.outMonthEndNC = list(set(self.configuration.reportingOptions['outMonthEndNC'].split(",")))
+            self.outMonthEndNC = list(set(self.reporting_options['outMonthEndNC'].split(",")))
         except:
             pass
         if self.outMonthEndNC[0] != "None":
@@ -123,7 +120,7 @@ class Reporting(object):
     def initiate_month_maximum_reporting(self):
         self.outMonthMaxNC = ["None"]
         try:
-            self.outMonthMaxNC = list(set(self.configuration.reportingOptions['outMonthMaxNC'].split(",")))
+            self.outMonthMaxNC = list(set(self.reporting_options['outMonthMaxNC'].split(",")))
         except:
             pass
         if self.outMonthMaxNC[0] != "None":
@@ -135,7 +132,7 @@ class Reporting(object):
     def initiate_year_average_reporting(self):
         self.outYearAvgNC = ["None"]
         try:
-            self.outYearAvgNC = list(set(self.configuration.reportingOptions['outYearAvgNC'].split(",")))
+            self.outYearAvgNC = list(set(self.reporting_options['outYearAvgNC'].split(",")))
         except:
             pass
         if self.outYearAvgNC[0] != "None":
@@ -148,7 +145,7 @@ class Reporting(object):
     def initiate_year_end_reporting(self):
         self.outYearEndNC = ["None"]
         try:
-            self.outYearEndNC = list(set(self.configuration.reportingOptions['outYearEndNC'].split(",")))
+            self.outYearEndNC = list(set(self.reporting_options['outYearEndNC'].split(",")))
         except:
             pass
         if self.outYearEndNC[0] != "None":
@@ -172,7 +169,7 @@ class Reporting(object):
     def initiate_year_maximum_reporting(self):
         self.outYearMaxNC = ["None"]
         try:
-            self.outYearMaxNC = list(set(self.configuration.reportingOptions['outYearMaxNC'].split(",")))
+            self.outYearMaxNC = list(set(self.reporting_options['outYearMaxNC'].split(",")))
         except:
             pass
         if self.outYearMaxNC[0] != "None":
@@ -215,7 +212,7 @@ class Reporting(object):
     def report_daily_total(self):
         if self.outDailyTotNC[0] != "None":
             for var in self.outDailyTotNC:
-                fn = self.outNCDir + "/" + str(var) + self.run_id + "_dailyTot_output.nc"
+                fn = self.output_dir + "/" + str(var) + self.run_id + "_dailyTot_output.nc"
                 self.netcdfObj.add_data_to_netcdf(
                     fn,
                     var,
@@ -230,8 +227,9 @@ class Reporting(object):
                 if self._modelTime.endMonth:
                     divd = np.min((self._modelTime.timeStepPCR, self._modelTime.day))
                     vars(self)[var+'_monthAvg'] = vars(self)[var+'_monthAvg'] / divd
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_monthAvg_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_monthAvg_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_monthAvg'),
                         self.time_stamp)
@@ -241,8 +239,9 @@ class Reporting(object):
             for var in self.outMonthEndNC:
                 if self._modelTime.endMonth:
                     vars(self)[var+'_monthEnd'] = vars(self)[var]
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_monthEnd_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_monthEnd_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_monthEnd'),
                         self.time_stamp)
@@ -254,8 +253,9 @@ class Reporting(object):
                 vars(self)[var+'_monthTot'][...,self._model.landmask] += vars(self)[var][...,self._model.landmask]
                 
                 if self._modelTime.endMonth:
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_monthTot_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_monthTot_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_monthTot'),
                         self.time_stamp)                    
@@ -266,8 +266,9 @@ class Reporting(object):
                 if self._modelTime.day == 1: vars(self)[var+'_monthMax'].fill(0)
                 vars(self)[var+'_monthMax'] = vars(self)[var+'_monthMax'].clip(vars(self)[var], None)
                 if self._modelTime.endMonth:
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_monthMax_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_monthMax_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_monthMax'),
                         self.time_stamp)                    
@@ -280,8 +281,9 @@ class Reporting(object):
                 if self._modelTime.endYear:
                     divd = np.min((self._modelTime.timeStepPCR, self._modelTime.doy))
                     vars(self)[var+'_yearAvg'] = vars(self)[var+'_yearAvg'] / divd
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_yearAvg_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_yearAvg_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_yearAvg'),
                         self.time_stamp)
@@ -292,8 +294,9 @@ class Reporting(object):
             for var in self.outYearEndNC:
                 if self._modelTime.endYear:
                     vars(self)[var+'_yearEnd'] = vars(self)[var]
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_yearEnd_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_yearEnd_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_yearEnd'),
                         self.time_stamp)
@@ -304,8 +307,9 @@ class Reporting(object):
                 if self._modelTime.doy == 1: vars(self)[var+'_yearTot'].fill(0)
                 vars(self)[var+'_yearTot'][...,self._model.landmask] += vars(self)[var][...,self._model.landmask]
                 if self._modelTime.endYear:
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_yearTot_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_yearTot_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_yearTot'),
                         self.time_stamp)                    
@@ -317,8 +321,9 @@ class Reporting(object):
                     vars(self)[var+'_yearMax'].fill(0)
                 vars(self)[var+'_yearMax'] = vars(self)[var+'_yearMax'].clip(vars(self)[var], None)
                 if self._modelTime.endYear:
+                    fn = self.output_dir + "/" + str(var) + self.run_id + "_yearMax_output.nc"
                     self.netcdfObj.add_data_to_netcdf(
-                        self.outNCDir+"/"+str(var)+"_yearMax_output.nc",
+                        fn,
                         var,
                         self.__getattribute__(var+'_yearMax'),
                         self.time_stamp)

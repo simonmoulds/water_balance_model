@@ -9,6 +9,9 @@ import netCDF4 as nc
 import datetime as datetime
 import calendar as calendar
 
+from Reporting import *
+import variable_list_crop
+
 from InitialCondition import *
 from RootZoneWater import *
 from SnowFrost import SnowFrost
@@ -25,17 +28,20 @@ from CropYield import CropYield
 from Income import Income
 from Investment import Investment
 from Accounting import Accounting
+from GridCellMean import GridCellMean
 
 class LandCover(object):
     def __init__(self, var, config_section_name):
+        self.var = var
         self._configuration = var._configuration
         self._modelTime = var._modelTime
         self.cloneMap = var.cloneMap
         self.landmask = var.landmask
         self.grid_cell_area = var.grid_cell_area
+        self.dimensions = var.dimensions
         self.nLat, self.nLon, self.nCell = var.nLat, var.nLon, var.nCell
         self.nFarm, self.nCrop = 1, 1
-
+        
         # attach meteorological and groundwater data to land cover object
         self.meteo = var.meteo_module
         self.groundwater = var.groundwater_module
@@ -43,6 +49,13 @@ class LandCover(object):
 
     def initial(self):
         pass
+    
+    def add_dimensions(self):
+        """Function to add dimensions to model dimensions 
+        object. This is necessary if the LandCover object 
+        contains a reporting method."""
+        self.dimensions['farm'] = np.arange(self.nFarm)
+        self.dimensions['crop'] = np.arange(self.nCrop)
 
     def dynamic(self):
         pass
@@ -146,65 +159,112 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         super(ManagedLandWithFarmerBehaviour, self).__init__(
             var,
             config_section_name)
-
+        
         self.lc_parameters_module = ManagedLandWithFarmerBehaviourParameters(self, config_section_name)
         self.initial_condition_module = InitialConditionManagedLand(self)
         self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
         self.snow_frost_module = SnowFrost(self)
-        self.evapotranspiration_module = Evapotranspiration(self)
-        self.interception_module = Interception(self)
-
-        self.irrigation_demand_module = IrrigationNonPaddy(self)
-        self.irrigation_supply_module = IrrigationSupply(self)
         
+        self.drainage_module = Drainage(self)
+        self.potential_et_module = PotentialEvapotranspiration(self)
+        
+        # self.evapotranspiration_module = Evapotranspiration(self)
+        self.interception_module = Interception(self)
+        self.irrigation_demand_module = IrrigationMultipleCrops(self)
+        self.irrigation_supply_module = IrrigationSupply(self)
         self.infiltration_module = Infiltration(self)
         self.capillary_rise_module = CapillaryRise(self)
-        self.drainage_module = Drainage(self)
-
+        # self.drainage_module = Drainage(self)
+        self.actual_et_module = ActualEvapotranspiration(self)
+        
         self.crop_yield_module = CropYield(self)
         self.income_module = Income(self)
         self.investment_module = Investment(self)
         self.accounting_module = Accounting(self)
+        self.grid_cell_mean_module = GridCellMean(self)
+        self.add_dimensions()
         
     def initial(self):
         self.lc_parameters_module.initial()
         self.initial_condition_module.initial()
         self.root_zone_water_module.initial()
         self.snow_frost_module.initial()
-        self.evapotranspiration_module.initial()        
-        self.interception_module.initial()
+
+        self.drainage_module.initial()
         
+        # self.evapotranspiration_module.initial()
+        self.potential_et_module.initial()
+        
+        self.interception_module.initial()
         self.irrigation_demand_module.initial()
         self.irrigation_supply_module.initial()
-        
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
-        self.drainage_module.initial()
-
+        # self.drainage_module.initial()
+        
+        self.actual_et_module.initial()
+        
         self.crop_yield_module.initial()
         self.income_module.initial()
         self.investment_module.initial()
         self.accounting_module.initial()
+        self.grid_cell_mean_module.initial()
+        self.reporting_module = Reporting(
+            self,
+            self._configuration.outNCDir,
+            self._configuration.NETCDF_ATTRIBUTES,
+            self._configuration.irrNonPaddy,
+            variable_list_crop,
+            'irrNonPaddy')
         
     def dynamic(self):
         self.lc_parameters_module.dynamic()
         self.initial_condition_module.dynamic()
-        self.root_zone_water_module.dynamic()
-        self.snow_frost_module.dynamic()
-        self.evapotranspiration_module.dynamic()
-        self.interception_module.dynamic()
         
-        self.irrigation_demand_module.dynamic()
+        self.root_zone_water_module.dynamic()
+        print '1',self.wc[0,0,0,0]
+        # print self.th[0,0,0,0]
+        self.snow_frost_module.dynamic()
+        self.drainage_module.dynamic()
+        print '2',self.wc[0,0,0,0]
+        # print self.th[0,0,0,0]
+        
+        # self.evapotranspiration_module.dynamic()
+        self.potential_et_module.dynamic()
+        print '3',self.wc[0,0,0,0]
+        
+        self.interception_module.dynamic()
+        print '4',self.wc[0,0,0,0]
+        
+        self.root_zone_water_module.dynamic()
+        print '5',self.wc[0,0,0,0]
+        
+        self.infiltration_module.compute_infiltration_capacity()        
+        self.irrigation_demand_module.dynamic()        
         self.irrigation_supply_module.dynamic()
+
+        print 'rain:',self.rain[0,0,0]
+        print 'irri:',np.max(self.irrigation)
+        print 'infl:',self.water_available_for_infiltration[0,3,0]
         
         self.infiltration_module.dynamic()
+        print '6',self.wc[0,0,0,0]
+        
+        self.root_zone_water_module.dynamic()
         self.capillary_rise_module.dynamic()
-        self.drainage_module.dynamic()
-
+        # self.drainage_module.dynamic()
+        print '7',self.wc[0,0,0,0]
+        
+        self.root_zone_water_module.dynamic()
+        self.actual_et_module.dynamic()
+        print '8',self.wc[0,0,0,0]
+        
         self.crop_yield_module.dynamic()
         self.income_module.dynamic()
         self.investment_module.dynamic()
         self.accounting_module.dynamic()
+        self.grid_cell_mean_module.dynamic()
+        self.reporting_module.report()
         
 class SealedLand(LandCover):
     def __init__(self, var, config_section_name):

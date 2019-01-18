@@ -32,18 +32,6 @@ class WaterBalanceModel(Model):
         self.groundwater_module.initial()
         self.canal_module.initial()
         self.lc_module.initial()
-        self.get_model_dimensions()
-        
-    def get_model_dimensions(self):
-        # TODO: remove dependency on PCRaster
-        latitudes = np.unique(pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), vos.MV))[::-1]
-        longitudes = np.unique(pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), vos.MV))
-        self.dimensions = {
-            'time'     : None,
-            'depth'    : np.arange(3), # TODO - put nComp in config section [SOIL]
-            'lat'      : latitudes,
-            'lon'      : longitudes,
-        }
         
     def dynamic(self):
         self.meteo_module.dynamic()

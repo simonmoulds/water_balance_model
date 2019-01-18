@@ -9,10 +9,10 @@ import netCDF4 as nc
 
 class FieldManagementParameters(object):
 
-    def __init__(self, FieldManagementParameters_variable, config_section_name):
+    def __init__(self, var, configuration):
         """Initialise FieldManagementParameters object"""
-        self.var = FieldManagementParameters_variable
-        self.lc_configuration = getattr(self.var._configuration, config_section_name)
+        self.var = var
+        self.configuration = configuration
 
     def initial(self):
         self.var.Bunds = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell), dtype=np.bool)
@@ -27,7 +27,7 @@ class FieldManagementParameters(object):
 class FieldManagementParametersManagedLand(FieldManagementParameters):
     
     def initial(self):
-        bunds = np.bool(np.int(self.lc_configuration['bunds']))
-        zbund = np.float(self.lc_configuration['zBund'])
+        bunds = np.bool(np.int(self.configuration['bunds']))
+        zbund = np.float(self.configuration['zBund'])
         self.var.Bunds = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * bunds
         self.var.zBund = np.ones((self.var.nFarm, self.var.nCrop, self.var.nCell)) * zbund

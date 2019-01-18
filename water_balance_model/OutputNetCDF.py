@@ -18,41 +18,35 @@ valid_time_dimnames = ['time']
 
 class OutputNetCDF(object):
     
-    def __init__(self, configuration, model_dimensions, variable_list, specificAttributeDictionary=None):
+    def __init__(self, netcdf_attr, model_dimensions, variable_list):
         self.model_dimensions = model_dimensions
         self.variable_list = variable_list
-        self.set_netcdf_y_orientation(configuration)
-        self.set_general_netcdf_attributes(configuration, specificAttributeDictionary)
-        self.set_netcdf_format_options(configuration)        
+        self.set_netcdf_y_orientation(netcdf_attr)
+        self.set_general_netcdf_attributes(netcdf_attr)
+        self.set_netcdf_format_options(netcdf_attr)        
 
-    def set_netcdf_format_options(self, configuration):
+    def set_netcdf_format_options(self, netcdf_attr):
         self.format = 'NETCDF3_CLASSIC'
         self.zlib = False
-        if 'formatNetCDF' in configuration.reportingOptions.keys():
-            self.format = str(configuration.reportingOptions['formatNetCDF'])
-        if 'zlib' in configuration.reportingOptions.keys():
-            if configuration.reportingOptions['zlib'] == "True":
+        if 'formatNetCDF' in netcdf_attr.keys():
+            self.format = str(netcdf_attr['formatNetCDF'])
+        if 'zlib' in netcdf_attr.keys():
+            if netcdf_attr['zlib'] == "True":
                 self.zlib = True
         
-    def set_netcdf_y_orientation(self, configuration):        
+    def set_netcdf_y_orientation(self, netcdf_attr):        
         self.netcdf_y_orientation_follow_cf_convention = False
-        if 'netcdf_y_orientation_follow_cf_convention' in configuration.reportingOptions.keys():
-            if configuration.reportingOptions['netcdf_y_orientation_follow_cf_convention'] == "True":
-                msg = "Latitude (y) orientation for output netcdf files start from the bottom to top."
+        if 'netcdf_y_orientation_follow_cf_convention' in netcdf_attr.keys():
+            if netcdf_attr['netcdf_y_orientation_follow_cf_convention'] == "True":
+                # msg = "Latitude (y) orientation for output netcdf files start from the bottom to top."
                 self.netcdf_y_orientation_follow_cf_convention = True        
 
-    def set_general_netcdf_attributes(self,configuration,specificAttributeDictionary=None):
-        """Function to set general netCDF attributes"""
-        
+    def set_general_netcdf_attributes(self, netcdf_attr):
+        """Function to set general netCDF attributes"""        
         self.attributeDictionary = {}
-        if specificAttributeDictionary == None:
-            self.attributeDictionary['institution'] = configuration.globalOptions['institution']
-            self.attributeDictionary['title'      ] = configuration.globalOptions['title'      ]
-            self.attributeDictionary['description'] = configuration.globalOptions['description']
-        else:
-            self.attributeDictionary['institution'] = specificAttributeDictionary['institution']
-            self.attributeDictionary['title'      ] = specificAttributeDictionary['title'      ]
-            self.attributeDictionary['description'] = specificAttributeDictionary['description']
+        self.attributeDictionary['institution'] = netcdf_attr['institution']
+        self.attributeDictionary['title'      ] = netcdf_attr['title'      ]
+        self.attributeDictionary['description'] = netcdf_attr['description']
         
     def add_dimension_time(self, netcdf, dimname, dimvar):
         """Function to add a time dimension to a netCDF file"""

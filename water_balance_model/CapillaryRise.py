@@ -116,6 +116,9 @@ class CapillaryRise(object):
         self.var.wc[...,1,:] += (capillary_rise2 - capillary_rise1)
         self.var.wc[...,2,:] += (self.var.capillary_rise_from_gw - capillary_rise2)
 
+        # CHECK
+        self.var.th = self.var.wc / self.var.root_depth
+            
         # CWATM:
         # satTermFC1 = np.maximum(0., self.var.w1[No] - self.var.wres1[No]) / (self.var.wfc1[No] - self.var.wres1[No])
         # satTermFC2 = np.maximum(0., self.var.w2[No] - self.var.wres2[No]) / (self.var.wfc2[No] - self.var.wres2[No])

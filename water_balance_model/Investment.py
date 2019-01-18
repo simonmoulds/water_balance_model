@@ -33,9 +33,7 @@ class Investment(object):
         installation_cost = (self.var.TubewellInstallationCost + self.var.PumpCost)  # farm,cell
         sufficient_resources = (self.var.SavingsAccount > installation_cost)
         cond = positive_benefit & sufficient_resources
-        print np.sum(self.var.TubewellCount)
         self.var.TubewellCount[cond] += 1
-        print np.sum(self.var.TubewellCount)
 
     def compute_return_on_investment(self):
         annual_cost_of_tubewell = (

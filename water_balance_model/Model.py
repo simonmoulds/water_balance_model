@@ -17,34 +17,50 @@ import VirtualOS as vos
 
 class Model(object):
     
-    def __init__(self, configuration, modelTime, initialState = None):        
-        
+    def __init__(self, configuration, modelTime, initialState = None):                
         self._configuration = configuration
         self._modelTime = modelTime
-
-        # clone map, land mask
-        pcr.setclone(configuration.cloneMap)
+        self.set_clone_map()
+        self.set_landmask()
+        self.set_grid_cell_area()
+        self.get_model_dimensions()
+        
+    def set_clone_map(self):
+        # TODO: REMOVE DEPENDENCY ON PCRASTER
+        pcr.setclone(self._configuration.cloneMap)  # TODO: CHECK IF THIS IS NECESSARY
         self.cloneMap = self._configuration.cloneMap
         self.cloneMapAttributes = vos.getMapAttributesALL(self.cloneMap)
-        
+
+    def set_landmask(self):
         self.landmask = vos.readPCRmapClone(
-            configuration.globalOptions['landmask'],
-            configuration.cloneMap,
-            configuration.tmpDir,
-            configuration.globalOptions['inputDir'],
+            self._configuration.globalOptions['landmask'],
+            self._configuration.cloneMap,
+            self._configuration.tmpDir,
+            self._configuration.globalOptions['inputDir'],
             True)
         self.landmask = self.landmask > 0
 
+    def set_grid_cell_area(self):
         grid_cell_area = vos.netcdf2PCRobjCloneWithoutTime(
-            str(configuration.MASK_OUTLET['gridCellAreaInputFile']),
-            str(configuration.MASK_OUTLET['gridCellAreaVariableName']),
+            str(self._configuration.MASK_OUTLET['gridCellAreaInputFile']),
+            str(self._configuration.MASK_OUTLET['gridCellAreaVariableName']),
             cloneMapFileName = self.cloneMap)
         self.grid_cell_area = grid_cell_area[self.landmask]
-        
-        # attr = vos.getMapAttributesALL(self.cloneMap)
+
+    def get_model_dimensions(self):
+        """Function to set model dimensions"""
         self.nLat = int(self.cloneMapAttributes['rows'])
+        self.latitudes = np.unique(pcr.pcr2numpy(pcr.ycoordinate(self.cloneMap), vos.MV))[::-1]
         self.nLon = int(self.cloneMapAttributes['cols'])
+        self.longitudes = np.unique(pcr.pcr2numpy(pcr.xcoordinate(self.cloneMap), vos.MV))
         self.nCell = int(np.sum(self.landmask))
+        self.nLayer = 3         # FIXED        
+        self.dimensions = {
+            'time'     : None,
+            'depth'    : np.arange(self.nLayer), # TODO - put nComp in config section [SOIL]
+            'lat'      : self.latitudes,
+            'lon'      : self.longitudes,
+        }
         
     @property
     def configuration(self):

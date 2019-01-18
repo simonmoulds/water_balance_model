@@ -19,8 +19,8 @@ class CropYield(object):
     def update_cumulative_evapotranspiration(self):
         self.var.ETactCum[self.var.GrowingSeasonDayOne] = 0
         self.var.ETpotCum[self.var.GrowingSeasonDayOne] = 0            
-        self.var.ETactCum += self.var.ETact
-        self.var.ETpotCum += self.var.ETpot
+        self.var.ETactCum += self.var.Tact
+        self.var.ETpotCum += self.var.Tpot
 
     def update_crop_yield(self):
         cond1 = self.var._modelTime.doy == self.var.HarvestDateAdj
@@ -34,5 +34,6 @@ class CropYield(object):
     def dynamic(self):
         self.update_cumulative_evapotranspiration()
         self.update_crop_yield()
+        
         # # calculate production by multiplying yield by crop area
         # self.var.Production = self.var.Y * (self.var.CropArea / 10000.)

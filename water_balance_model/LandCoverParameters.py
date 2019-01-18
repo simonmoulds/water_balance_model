@@ -281,7 +281,7 @@ class NaturalVegetationParameters(LandCoverParameters):
         self.intercept_capacity_module = InterceptionCapacity(var, self.configuration)
         self.root_depth_module = MaxRootDepthFromFile(var, self.configuration)            
         self.root_fraction_module = RootFraction(var, self.configuration)
-        self.field_mgmt_parameters_module = FieldManagementParameters(var, config_section_name)
+        self.field_mgmt_parameters_module = FieldManagementParameters(var, self.configuration)
 
     def initial(self):
         self.soil_parameters_module.initial()
@@ -311,7 +311,7 @@ class ManagedLandParameters(LandCoverParameters):
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
         self.root_depth_module = MaxRootDepthFromFile(var, self.configuration)            
         self.root_fraction_module = RootFraction(var, self.configuration)
-        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, config_section_name)
+        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, self.configuration)
         self.irrigation_parameters_module = IrrigationParameters(var, config_section_name)
 
     def initial(self):
@@ -351,7 +351,7 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
         self.root_depth_module = MaxRootDepthDynamic(var, self.configuration)
         self.root_fraction_module = RootFraction(var, self.configuration)
-        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, config_section_name)
+        self.field_mgmt_parameters_module = FieldManagementParametersManagedLand(var, self.configuration)
         self.irrigation_parameters_module = IrrigationParameters(var, config_section_name)
 
     def initial(self):

@@ -3,79 +3,15 @@
 
 import os
 import numpy as np
-from hydro_model_builder import VirtualOS as vos
+import VirtualOS as vos
 
 import logging
 logger = logging.getLogger(__name__)
-
-class FertiliserPrice(object):
-
-    def __init__(self, FertiliserPrice_variable):
-        self.var = FertiliserPrice_variable        
-        self.var.NitrogenPriceFileNC = (
-            str(self.var._configuration.priceOptions['NitrogenPriceNC']))
-        self.var.NitrogenPriceVarName = (
-            str(self.var._configuration.priceOptions['NitrogenPriceVariableName']))
-        self.var.PhosphorusPriceFileNC = (
-            str(self.var._configuration.priceOptions['PhosphorusPriceNC']))
-        self.var.PhosphorusPriceVarName = (
-            str(self.var._configuration.priceOptions['PhosphorusPriceVariableName']))
-        self.var.PotassiumPriceFileNC = (
-            str(self.var._configuration.priceOptions['PotassiumPriceNC']))
-        self.var.PotassiumPriceVarName = (
-            str(self.var._configuration.priceOptions['PotassiumPriceVariableName']))
-
-    def initial(self):
-        arr_zeros = np.zeros((self.var.nCell))
-        self.var.NitrogenPrice = arr_zeros.copy()
-        self.var.PhosphorusPrice = arr_zeros.copy()
-        self.var.PotassiumPrice = arr_zeros.copy()
-
-    def reset_initial_conditions(self):
-        pass
-
-    def read_fertiliser_price(self, ncFile, ncVarName, date = None):        
-
-        fert_price = vos.netcdf2PCRobjClone(
-            ncFile,
-            ncVarName,
-            date,
-            useDoy = None,
-            cloneMapFileName = self.var.cloneMap,
-            LatitudeLongitude = True)        
-        fert_price = fert_price[self.var.landmask]
-        return fert_price
-
-    def set_fertiliser_price(self):
-        if self.var._modelTime.timeStepPCR == 1 or self.var._modelTime.doy == 1:
-            date = '%04i-%02i-%02i' % (self.var._modelTime.year, 1, 1)
-            if not self.var.NitrogenPriceFileNC == "None":                
-                self.var.NitrogenPrice = self.read_fertiliser_price(
-                    self.var.NitrogenPriceFileNC,
-                    self.var.NitrogenPriceVarName,
-                    date)
-                print np.max(self.var.NitrogenPrice)
-            if not self.var.PhosphorusPriceFileNC == "None":
-                self.var.PhosphorusPrice = self.read_fertiliser_price(
-                    self.var.PhosphorusPriceFileNC,
-                    self.var.PhosphorusPriceVarName,
-                    date)
-                print np.max(self.var.PhosphorusPrice)
-            if not self.var.PotassiumPriceFileNC == "None":
-                self.var.PotassiumPrice = self.read_fertiliser_price(
-                    self.var.PotassiumPriceFileNC,
-                    self.var.PotassiumPriceVarName,
-                    date)
-                print np.max(self.var.PotassiumPrice)
-
-    def dynamic(self):
-        self.set_fertiliser_price()
         
 class FertiliserApplication(object):
 
     def __init__(self, FertiliserApplication_variable):
         self.var = FertiliserApplication_variable        
-        self.fertiliser_price_module = FertiliserPrice(FertiliserApplication_variable)
         self.var.AnnualChangeInFertiliserAppRate = (
             bool(int(self.var._configuration.fieldMgmtOptions['AnnualChangeInFertiliserAppRate'])))
         self.var.NitrogenAppRateFileNC = (

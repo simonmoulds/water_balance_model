@@ -47,7 +47,7 @@ class Infiltration(object):
                 self.var.water_available_for_infiltration
                 * self.var.relative_saturation
                 ** self.var.cPrefFlow)            
-            self.var.preferential_flow[self.var.FrostIndex > self.var.FrostIndexThreshold] = 0.
+            self.var.preferential_flow[self.var.frost_index > self.var.frost_index_threshold] = 0.
 
     def dynamic(self):
         self.compute_infiltration_capacity()
@@ -96,7 +96,7 @@ class Infiltration(object):
         ToStore[cond21] = self.var.potential_infiltration[cond21]
         RunoffIni[cond21] = (self.var.water_available_for_infiltration - self.var.potential_infiltration)[cond21]
         cond22 = (cond2 & np.logical_not(cond21))
-        ToStore[cond22] = self.var.potential_infiltration[cond22]
+        ToStore[cond22] = self.var.water_available_for_infiltration[cond22]
         RunoffIni[cond22] = 0
 
         self.var.infiltration = ToStore.copy()

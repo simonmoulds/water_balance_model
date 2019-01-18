@@ -77,13 +77,13 @@ class SnowFrost(object):
         
         # self.var.Kfrost = loadmap('Kfrost')
         # self.var.Afrost = loadmap('Afrost')
-        # self.var.FrostIndexThreshold = loadmap('FrostIndexThreshold')
+        # self.var.frost_index_threshold = loadmap('FrostIndexThreshold')
         # self.var.SnowWaterEquivalent = loadmap('SnowWaterEquivalent')
 
         # # FrostIndexInit=ifthen(defined(self.var.MaskMap),scalar(loadmap('FrostIndexInitValue')))
 
-        # #self.var.FrostIndex = loadmap('FrostIndexIni')
-        # self.var.FrostIndex = self.var.init_module.load_initial('FrostIndex')
+        # #self.var.frost_index = loadmap('FrostIndexIni')
+        # self.var.frost_index = self.var.init_module.load_initial('FrostIndex')
     
     def dynamic(self):
 

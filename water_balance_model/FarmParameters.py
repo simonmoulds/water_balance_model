@@ -137,7 +137,7 @@ class DieselPrice(object):
 
     def dynamic(self):
         self.set_diesel_price()
-        print np.max(self.var.DieselPrice)
+        # print np.max(self.var.DieselPrice)
         
 # # ***TODO***:
 # class FarmCategory(object):

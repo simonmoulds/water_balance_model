@@ -52,19 +52,19 @@ class FertiliserPrice(object):
                     self.NitrogenPriceFileNC,
                     self.NitrogenPriceVarName,
                     date)
-                print np.max(self.var.NitrogenPrice)
+                # print np.max(self.var.NitrogenPrice)
             if not self.PhosphorusPriceFileNC == "None":
                 self.var.PhosphorusPrice = self.read_fertiliser_price(
                     self.PhosphorusPriceFileNC,
                     self.PhosphorusPriceVarName,
                     date)
-                print np.max(self.var.PhosphorusPrice)
+                # print np.max(self.var.PhosphorusPrice)
             if not self.PotassiumPriceFileNC == "None":
                 self.var.PotassiumPrice = self.read_fertiliser_price(
                     self.PotassiumPriceFileNC,
                     self.PotassiumPriceVarName,
                     date)
-                print np.max(self.var.PotassiumPrice)
+                # print np.max(self.var.PotassiumPrice)
 
     def dynamic(self):
         self.set_fertiliser_price()
