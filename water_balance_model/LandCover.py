@@ -222,43 +222,22 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.initial_condition_module.dynamic()
         
         self.root_zone_water_module.dynamic()
-        print '1',self.wc[0,0,0,0]
-        # print self.th[0,0,0,0]
         self.snow_frost_module.dynamic()
         self.drainage_module.dynamic()
-        print '2',self.wc[0,0,0,0]
-        # print self.th[0,0,0,0]
-        
         # self.evapotranspiration_module.dynamic()
         self.potential_et_module.dynamic()
-        print '3',self.wc[0,0,0,0]
-        
         self.interception_module.dynamic()
-        print '4',self.wc[0,0,0,0]
-        
         self.root_zone_water_module.dynamic()
-        print '5',self.wc[0,0,0,0]
-        
         self.infiltration_module.compute_infiltration_capacity()        
         self.irrigation_demand_module.dynamic()        
         self.irrigation_supply_module.dynamic()
-
-        print 'rain:',self.rain[0,0,0]
-        print 'irri:',np.max(self.irrigation)
-        print 'infl:',self.water_available_for_infiltration[0,3,0]
         
         self.infiltration_module.dynamic()
-        print '6',self.wc[0,0,0,0]
-        
         self.root_zone_water_module.dynamic()
         self.capillary_rise_module.dynamic()
         # self.drainage_module.dynamic()
-        print '7',self.wc[0,0,0,0]
-        
         self.root_zone_water_module.dynamic()
         self.actual_et_module.dynamic()
-        print '8',self.wc[0,0,0,0]
-        
         self.crop_yield_module.dynamic()
         self.income_module.dynamic()
         self.investment_module.dynamic()

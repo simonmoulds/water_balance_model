@@ -185,15 +185,22 @@ class FarmParameters(object):
         self.diesel_price_module.initial()
         
     def update_first_day_of_year(self):
+        """Function to update variables pertaining to the 
+        start of the agricultural year
+        """
+        # note that we do not need to copy because
+        # start_of_agricultural_year is an int, which is
+        # immutable in Python (unlike a numpy array)
+        start_of_agricultural_year = self.var.start_of_agricultural_year
         isLeapYear = calendar.isleap(self.var._modelTime.year)
         if (isLeapYear & (self.var.start_of_agricultural_year >= 60)):
-            start_of_year += 1
+            start_of_agricultural_year += 1
             
         self.var.IsFirstDayOfYear = False
         self.var.IsLastDayOfYear = False
-        if self.var._modelTime.doy == self.var.start_of_agricultural_year:
+        if self.var._modelTime.doy == start_of_agricultural_year:
             self.var.IsFirstDayOfYear = True
-        elif ((self.var._modelTime.doy + 1) == self.var.start_of_agricultural_year):
+        elif ((self.var._modelTime.doy + 1) == start_of_agricultural_year):
             self.var.IsLastDayOfYear = True
 
     def set_farm_area(self):

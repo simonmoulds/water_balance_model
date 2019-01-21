@@ -17,23 +17,30 @@ class CropYield(object):
         # self.var.Production = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))        
 
     def update_cumulative_evapotranspiration(self):
-        self.var.ETactCum[self.var.GrowingSeasonDayOne] = 0
-        self.var.ETpotCum[self.var.GrowingSeasonDayOne] = 0            
-        self.var.ETactCum += self.var.Tact
-        self.var.ETpotCum += self.var.Tpot
+        self.var.ETactCum[np.logical_not(self.var.GrowingSeasonIndex)] = 0
+        self.var.ETpotCum[np.logical_not(self.var.GrowingSeasonIndex)] = 0            
+        # self.var.ETactCum[self.var.GrowingSeasonDayOne] = 0
+        # self.var.ETpotCum[self.var.GrowingSeasonDayOne] = 0            
+        self.var.ETactCum[self.var.GrowingSeasonIndex] += self.var.Tact[self.var.GrowingSeasonIndex]
+        self.var.ETpotCum[self.var.GrowingSeasonIndex] += self.var.Tpot[self.var.GrowingSeasonIndex]
 
     def update_crop_yield(self):
         cond1 = self.var._modelTime.doy == self.var.HarvestDateAdj
+        ET_ratio = np.divide(
+            self.var.ETactCum,
+            self.var.ETpotCum,
+            np.zeros_like(self.var.ETpotCum),
+            where=self.var.ETpotCum>0)
         self.var.Y[cond1] = (
             (self.var.Yx
              * (1 - self.var.Ky
-                * (1 - self.var.ETactCum / self.var.ETpotCum)))
+                * (1 - ET_ratio)))
             / 1000)[cond1]  # tonne
+        # print 'act / cum: ', ET_ratio[...,0]
         self.var.Y[np.logical_not(cond1)] = 0
         
     def dynamic(self):
         self.update_cumulative_evapotranspiration()
-        self.update_crop_yield()
-        
+        self.update_crop_yield()        
         # # calculate production by multiplying yield by crop area
         # self.var.Production = self.var.Y * (self.var.CropArea / 10000.)

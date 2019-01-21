@@ -157,7 +157,7 @@ class RootFraction(BaseClass):
         root_fraction = vos.netcdf2PCRobjCloneWithoutTime(
             self.rootFractionNC,
             self.rootFractionVarName,
-            cloneMapFileName = self.var.cloneMap) # nlayer, nlat, nlon
+            cloneMapFileName = self.var.cloneMap)
         root_fraction = root_fraction[landmask].reshape(2,self.var.nCell)
         root_fraction = np.broadcast_to(
             root_fraction[None,None,:,:],
@@ -177,7 +177,8 @@ class RootFraction(BaseClass):
         root_fraction_adj[...,2,:] = (1. - root_fraction[...,1,:])
 
         # 2 - scale so that the total root fraction sums to one
-        root_fraction_adj /= np.sum(root_fraction_adj, axis=0)  # rhs is broadcast automatically
+        root_fraction_sum = np.sum(root_fraction_adj, axis=-2)
+        root_fraction_adj /= root_fraction_sum[...,None,:]
         self.var.root_fraction = root_fraction_adj.copy()
         
     def dynamic(self):
@@ -193,21 +194,25 @@ class MaxRootDepth(BaseClass):
         """
         self.var.root_depth = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
         self.var.root_depth[...,0,:] = self.var.soil_depth[...,0,:].copy()
+
+        # make sure that root depth in layer 1 does not exceed
+        # the depth of the soil layer
+        soildepth12 = (
+            self.var.soil_depth[...,1,:]
+            + self.var.soil_depth[...,2,:]
+        )
         h1 = np.maximum(
-            self.var.soil_depth[...,0,:],
-            self.var.max_root_depth - self.var.root_depth[...,0,:]
+            self.var.soil_depth[...,1,:],
+            self.var.max_root_depth - self.var.soil_depth[...,0,:]
         )
         self.var.root_depth[...,1,:] = np.minimum(
-            (self.var.soil_depth[...,1,:]
-             + self.var.soil_depth[...,2,:]
-             - 0.05),
+            (soildepth12 - 0.05),
             h1
         )
+        # make sure the root depth in layer 2 is at least 0.05m (?)
         self.var.root_depth[...,2,:] = np.maximum(
             0.05,
-            (self.var.soil_depth[...,1,:]
-             + self.var.soil_depth[...,2,:]
-             - self.var.root_depth[...,1,:])
+            (soildepth12 - self.var.root_depth[...,1,:])
         )
         
     def dynamic(self):
@@ -215,6 +220,7 @@ class MaxRootDepth(BaseClass):
     
 class MaxRootDepthFromFile(MaxRootDepth):
     def initial(self):
+        super(MaxRootDepthFromFile, self).initial()
         self.maxRootDepthNC = str(self.configuration['maxRootDepthInputFile'])
         self.maxRootDepthVarName = str(self.configuration['maxRootDepthVariableName'])
         self.read_max_root_depth()
@@ -226,12 +232,14 @@ class MaxRootDepthFromFile(MaxRootDepth):
             self.maxRootDepthVarName,
             cloneMapFileName = self.var.cloneMap)  # nlat, nlon
         max_root_depth = max_root_depth[self.var.landmask]
+        max_root_depth *= self.var.soildepth_factor  # CALIBRATION
         self.var.max_root_depth = np.broadcast_to(
             max_root_depth[None,None,:],
             (self.var.nFarm, self.var.nCrop, self.var.nCell))
 
 class MaxRootDepthDynamic(MaxRootDepth):
     def initial(self):
+        super(MaxRootDepthDynamic, self).initial()
         self.compute_max_root_depth()
         self.compute_root_depth()
         

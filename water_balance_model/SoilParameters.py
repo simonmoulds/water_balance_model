@@ -36,10 +36,9 @@ class SoilParameters(object):
         soil_depth = np.stack([soildepth0, soildepth1, soildepth2])
 
         # CALIBRATION
-        soildepth_factor = 1.   # TODO: read from configuration
-        soil_depth[1] *= soildepth_factor
-        soil_depth[2] *= soildepth_factor
-        # soil_depth12 = self.var.soil_depth[1] + self.var.soil_depth[2]
+        self.var.soildepth_factor = 1.   # TODO: read from configuration
+        soil_depth[1] *= self.var.soildepth_factor
+        soil_depth[2] *= self.var.soildepth_factor
         self.var.soil_depth = np.broadcast_to(
             soil_depth[None,None,:,:],
             (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
@@ -147,6 +146,13 @@ class SoilParameters(object):
             + self.var.wc_range
             / ((1 + (self.var.van_genuchten_alpha * (10 ** 4.2)) ** self.var.van_genuchten_n) ** self.var.van_genuchten_m))
 
+        # print 'rt depth:',self.var.root_depth[0,0,:,0]
+        # print 'wc_sat  :',self.var.wc_sat[0,0,:,0]
+        # print 'wc_res  :',self.var.wc_res[0,0,:,0]
+        # print 'wc_range:',self.var.wc_range[0,0,:,0]
+        # print 'wc_fc   :',self.var.wc_fc[0,0,:,0]
+        # print 'wc_wp   :',self.var.wc_wp[0,0,:,0]
+        
         # not sure where these are used???
         sat_term_fc = np.maximum(0., self.var.wc_fc - self.var.wc_res) / self.var.wc_range
         k_unsat_fc = self.var.ksat * np.sqrt(sat_term_fc) * np.square(1 - (1 - sat_term_fc ** self.var.van_genuchten_inv_m) ** self.var.van_genuchten_m)

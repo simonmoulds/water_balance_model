@@ -80,24 +80,25 @@ class ActualEvapotranspiration(object):
             (self.var.wc_crit - self.var.wc_wp),
             out=np.zeros_like(self.var.wc_wp),
             where=self.var.wc_crit>self.var.wc_wp)
-        Ks = np.maximum(np.minimum(1., Ks), 0.)
-        Ks *= self.var.root_fraction
-        Ks_sum = np.sum(Ks, axis=2)
-        Ks_sum = Ks_sum.clip(0., 1.)
+        Ks = Ks.clip(0., 1.)
+        Ks *= self.var.root_fraction        
+        Ks_sum = np.sum(Ks, axis=-2)
         TactMax = self.var.Tpot * Ks_sum
         TactMax = np.where(self.var.frost_index > self.var.frost_index_threshold, 0., TactMax)
         Tact = (
             np.broadcast_to(
-                TactMax[:,:,None,:],
+                TactMax[...,None,:],
                 (self.var.nFarm, self.var.nCrop, self.var.nLayer, self.var.nCell))
             * self.var.root_fraction)
-        Tact = Tact.clip(None, self.var.wc - self.var.wc_wp)
-        Tact = Tact.clip(0., None)
+        Tact = Tact.clip(0., self.var.wc - self.var.wc_wp)
         self.var.Tact_comp = Tact.copy()
-        self.var.Tact = np.sum(self.var.Tact_comp, axis=2)  # sum along compartment axis        
+        self.var.Tact = np.sum(self.var.Tact_comp, axis=-2)
         self.var.wc -= self.var.Tact_comp
-        self.var.th -= np.divide(self.var.Tact_comp, self.var.root_depth * 1000)
+        self.var.th -= np.divide(self.var.Tact_comp, self.var.root_depth)
 
+        # cumulative transpiration
+        
+        
     def compute_actual_soil_evaporation(self):
         # CWATM, soil.py, lines 252-260
         self.var.Eact = np.minimum(self.var.Epot, np.maximum(0., self.var.wc[...,0,:] - self.var.wc_res[...,0,:]))

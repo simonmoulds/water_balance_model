@@ -149,10 +149,10 @@ class IrrigationSupply(object):
             self.var.FarmCropArea,
             out=np.zeros_like(self.var.FarmCropArea),
             where=self.var.FarmCropArea > 0)
-        # irrigation_supply *= 1000.  # m -> mm
         # irrigation_supply = np.round(irrigation_supply * 1000., decimals=3)
-        
-        self.var.irrigation = self.var.irrigation.clip(None, irrigation_supply)  # farm, crop, cell        
+
+        # TEMPORARILY COMMENT OUT THIS PART
+        # self.var.irrigation = self.var.irrigation.clip(None, irrigation_supply)  # farm, crop, cell
         self.var.water_available_for_infiltration += self.var.irrigation
 
         # compute irrigation expenses

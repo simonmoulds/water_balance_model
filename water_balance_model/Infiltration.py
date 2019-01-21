@@ -74,9 +74,9 @@ class Infiltration(object):
         self.var.SurfaceStorage[cond112] = 0
 
         # Calculate additional RunoffIni if water overtops bunds
-        cond113 = (cond11 & (self.var.SurfaceStorage > (self.var.zBund * 1000.)))
-        RunoffIni[cond113] = (self.var.SurfaceStorage - (self.var.zBund * 1000.))[cond113]
-        self.var.SurfaceStorage[cond113] = (self.var.zBund * 1000.)[cond113]
+        cond113 = (cond11 & (self.var.SurfaceStorage > self.var.zBund))
+        RunoffIni[cond113] = (self.var.SurfaceStorage - (self.var.zBund))[cond113]
+        self.var.SurfaceStorage[cond113] = (self.var.zBund)[cond113]
 
         # Otherwise excess water does not overtop bunds and there is no RunoffIni
         cond114 = (cond11 & np.logical_not(cond113))
@@ -109,6 +109,9 @@ class Infiltration(object):
         saturation_excess = saturation_excess.clip(0., None)
         self.var.wc[...,1,:] += saturation_excess
         self.var.wc[...,0,:] -= saturation_excess
+
+        # print self.var.wc[0,:,0,0] >= self.var.wc_crit[0,:,0,0]
+        # print self.var.wc[0,:,1,0] >= self.var.wc_crit[0,:,1,0]
         
         self.var.th[...,0,:] = self.var.wc[...,0,:] / self.var.root_depth[...,0,:]
         self.var.th[...,1,:] = self.var.wc[...,1,:] / self.var.root_depth[...,1,:]
