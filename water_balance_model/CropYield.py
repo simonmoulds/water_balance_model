@@ -38,6 +38,11 @@ class CropYield(object):
             / 1000)[cond1]  # tonne
         # print 'act / cum: ', ET_ratio[...,0]
         self.var.Y[np.logical_not(cond1)] = 0
+        # print 'act / cum: ', ET_ratio[0,:,0]
+        # print 'irri     : ',self.var.irrigation[0,:,0]
+        # print 'wc1      : ',self.var.wc[0,:,0,0] > self.var.wc_crit[0,:,0,0]
+        # print 'wc2      : ',self.var.wc[0,:,1,0] > self.var.wc_crit[0,:,1,0]
+        # print 'wc3      : ',self.var.wc[0,:,2,0] > self.var.wc_crit[0,:,2,0]
         
     def dynamic(self):
         self.update_cumulative_evapotranspiration()

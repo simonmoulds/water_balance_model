@@ -108,3 +108,4 @@ class Drainage(object):
         # update water content (what about excess water?)
         self.var.wc[...,0,:] = np.minimum(self.var.wc[...,0,:], self.var.wc_sat[...,0,:])
         self.var.th = self.var.wc / self.var.root_depth
+

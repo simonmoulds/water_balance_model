@@ -165,7 +165,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
         self.snow_frost_module = SnowFrost(self)
         
-        self.drainage_module = Drainage(self)
+        # self.drainage_module = Drainage(self)
         self.potential_et_module = PotentialEvapotranspiration(self)
         
         # self.evapotranspiration_module = Evapotranspiration(self)
@@ -174,7 +174,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.irrigation_supply_module = IrrigationSupply(self)
         self.infiltration_module = Infiltration(self)
         self.capillary_rise_module = CapillaryRise(self)
-        # self.drainage_module = Drainage(self)
+        self.drainage_module = Drainage(self)
         self.actual_et_module = ActualEvapotranspiration(self)
         
         self.crop_yield_module = CropYield(self)
@@ -190,7 +190,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.root_zone_water_module.initial()
         self.snow_frost_module.initial()
 
-        self.drainage_module.initial()
+        # self.drainage_module.initial()
         
         # self.evapotranspiration_module.initial()
         self.potential_et_module.initial()
@@ -200,7 +200,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.irrigation_supply_module.initial()
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
-        # self.drainage_module.initial()
+        self.drainage_module.initial()
         
         self.actual_et_module.initial()
         
@@ -223,7 +223,7 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         
         self.root_zone_water_module.dynamic()
         self.snow_frost_module.dynamic()
-        self.drainage_module.dynamic()
+        # self.drainage_module.dynamic()
         # self.evapotranspiration_module.dynamic()
         self.potential_et_module.dynamic()
         self.interception_module.dynamic()
@@ -231,11 +231,14 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.infiltration_module.compute_infiltration_capacity()        
         self.irrigation_demand_module.dynamic()        
         self.irrigation_supply_module.dynamic()
-        
+
+        # the order here (infiltration/cap rise/drainage)
+        # is the same as in CWATM
         self.infiltration_module.dynamic()
         self.root_zone_water_module.dynamic()
         self.capillary_rise_module.dynamic()
-        # self.drainage_module.dynamic()
+        self.drainage_module.dynamic()
+        
         self.root_zone_water_module.dynamic()
         self.actual_et_module.dynamic()
         self.crop_yield_module.dynamic()

@@ -16,6 +16,8 @@ class CropArea(object):
         self.configuration = configuration
         self.CropAreaFileNC = str(self.configuration['cropAreaInputFile'])
         self.CropAreaVarName = str(self.configuration['cropAreaVariableName'])
+        self.CropTypes = [str(crop.strip()) for crop in self.configuration['cropTypes'].split(',')]
+        self.CropIsIrrigated = [bool(int(irri.strip())) for irri in self.configuration['cropIrrigated'].split(',')]
         self.AnnualChangeInCropArea = bool(int(self.configuration['annualChangeInCropArea']))
         self.var.landmask_crop = np.broadcast_to(
             self.var.landmask[None,:,:],
@@ -117,6 +119,58 @@ class CropArea(object):
             crop_area_not_grown
             * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]),
             axis=0)
+
+        # TODO: estimate irrigated and unirrigated area
+        # farms without access to irrigation must grow rainfed crops, so allocate these first
+        # farms with irrigation can grow either rainfed or irrigated crops
+        # irrigated_crop_area = (
+        #     self.var.CropArea
+        #     * self.CropIsIrrigated[:,None,None]
+        #     * self.var.GrowingSeasonIndex[0,:,:]
+        # )
+        # total_irrigated_crop_area = np.sum(irrigated_crop_area, axis=0)
+
+        # # rainfed area
+        # # ############
+        # rainfed_area = (
+        #     self.var.CropArea
+        #     * np.logical_not(self.CropIsIrrigated[:,None,None])
+        #     * self.var.GrowingSeasonIndex[0,:,:]
+        # )
+        # total_rainfed_area = np.sum(rainfed_crop_area, axis=0)        
+        # rainfed_area_not_grown = (
+        #     self.var.CropArea
+        #     * np.logical_not(self.CropIsIrrigated[:,None,None])            
+        #     * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))        
+        # total_rainfed_area_not_grown = np.sum(
+        #     rainfed_area_not_grown,
+        #     axis=0)
+
+        # rainfed_scale_factor = np.divide(
+        #     rainfed_area_not_grown,
+        #     total_rainfed_area_not_grown,
+        #     out=np.zeros_like(rainfed_area_not_grown),
+        #     where=total_rainfed_area_not_grown>0)
+
+        # target_rainfed_fallow_area = np.clip(self.var.CroplandArea - total_rainfed_area, 0, None)
+        # rainfed_fallow_area = target_fallow_area * scale_factor
+        
+        
+        # # irrigated area
+        # # ##############
+        # irrigated_area = (
+        #     self.var.CropArea
+        #     * np.logical_not(self.var.CropIsIrrigated[:,None,None])
+        #     * self.var.GrowingSeasonIndex[0,:,:]
+        # )
+        # total_irrigated_area = np.sum(irrigated_crop_area, axis=0)        
+        # irrigated_area_not_grown = (
+        #     self.var.CropArea
+        #     * np.logical_not(self.var.CropIsIrrigated[:,None,None])            
+        #     * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))        
+        # total_irrigated_area_not_grown = np.sum(
+        #     irrigated_area_not_grown,
+        #     axis=0)
         
         scale_factor = np.divide(
             crop_area_not_grown,
@@ -133,7 +187,7 @@ class CropArea(object):
         self.var.CurrentCropArea = self.var.CropArea.copy()
         self.var.CurrentCropArea[np.logical_not(self.var.GrowingSeasonIndex[0,:,:])] = (
             (fallow_area[np.logical_not(self.var.GrowingSeasonIndex[0,:,:])]))
-
+        
         # # Check CurrentCropArea sums to CroplandArea:
         # print np.sum(self.var.CurrentCropArea[:,249])
         # print self.var.CroplandArea[249]

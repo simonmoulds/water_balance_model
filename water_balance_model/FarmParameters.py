@@ -316,7 +316,10 @@ class FarmParameters(object):
                         farm_category[mask],
                         (self.var.nFarm, self.var.nCell))
                     self.var.FarmCategory = farm_category.copy()
-                            
+
+    def set_farm_irrigation_status(self):
+        self.var.farm_has_irrigation = ((self.var.TubewellCount > 0) | (self.var.CanalAccess > 0))
+        
     def dynamic(self):
         self.update_first_day_of_year()
         self.set_farm_area()
@@ -324,4 +327,7 @@ class FarmParameters(object):
         self.set_farm_category_area()
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
+        self.set_farm_irrigation_status()
         self.diesel_price_module.dynamic()
+        # print self.var.FarmArea.shape
+        # print self.var.FarmCategoryArea.shape
