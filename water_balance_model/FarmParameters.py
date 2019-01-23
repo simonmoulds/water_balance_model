@@ -319,6 +319,54 @@ class FarmParameters(object):
 
     def set_farm_irrigation_status(self):
         self.var.farm_has_irrigation = ((self.var.TubewellCount > 0) | (self.var.CanalAccess > 0))
+
+    def set_irrigated_rainfed_area(self):
+        self.var.nFarmPerCategory = (
+            self.var.FarmCategoryArea /
+            self.var.FarmArea
+        )
+        num_tubewells = (
+            self.var.TubewellCount
+            * self.var.nFarmPerCategory
+        )        
+        tubewell_probability = self.var.TubewellCount.clip(0.,1.)
+        canal_probability = self.var.CanalAccess.clip(0.,1.)
+        canal_and_tubewell_probability = (
+            tubewell_probability *
+            canal_probability
+        )
+        canal_or_tubewell_probability = (
+            tubewell_probability +
+            canal_probability -
+            canal_and_tubewell_probability
+        )
+        num_farms_with_canal_access = (
+            self.var.nFarmPerCategory
+            * canal_probability
+        )        
+        num_farms_with_tubewell = (
+            self.var.nFarmPerCategory
+            * tubewell_probability
+        )
+        num_farms_with_irrigation = (
+            self.var.nFarmPerCategory
+            * canal_or_tubewell_probability
+        )
+        num_farms_without_irrigation = (
+            self.var.nFarmPerCategory
+            - num_farms_with_irrigation
+        )
+        area_with_irrigation = (
+            num_farms_with_irrigation
+            * self.var.FarmArea
+        )
+        area_without_irrigation = (
+            self.var.FarmCategoryArea
+            - area_with_irrigation
+        )
+        # print self.var.FarmCategoryArea[:,0]
+        # print area_with_irrigation[:,0]
+        # print area_without_irrigation[:,0]
         
     def dynamic(self):
         self.update_first_day_of_year()
@@ -328,6 +376,7 @@ class FarmParameters(object):
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
         self.set_farm_irrigation_status()
-        self.diesel_price_module.dynamic()
+        self.set_irrigated_rainfed_area()
+        self.diesel_price_module.dynamic()        
         # print self.var.FarmArea.shape
         # print self.var.FarmCategoryArea.shape
