@@ -17,7 +17,7 @@ class CropArea(object):
         self.CropAreaFileNC = str(self.configuration['cropAreaInputFile'])
         self.CropAreaVarName = str(self.configuration['cropAreaVariableName'])
         self.CropTypes = [str(crop.strip()) for crop in self.configuration['cropTypes'].split(',')]
-        self.CropIsIrrigated = [bool(int(irri.strip())) for irri in self.configuration['cropIrrigated'].split(',')]
+        self.CropIsIrrigated = np.array([bool(int(irri.strip())) for irri in self.configuration['cropIrrigated'].split(',')])
         self.AnnualChangeInCropArea = bool(int(self.configuration['annualChangeInCropArea']))
         self.var.landmask_crop = np.broadcast_to(
             self.var.landmask[None,:,:],
@@ -28,7 +28,7 @@ class CropArea(object):
 
     def read_cropland_area(self):
         self.var.CroplandArea = (
-            self.var.coverFraction
+            self.var.cover_fraction
             * self.var.grid_cell_area)
         
     def read_crop_area(self, date = None):
@@ -59,15 +59,61 @@ class CropArea(object):
         hd = self.var.HarvestDate.copy()[0,...]
         hd[hd < pd] += 365
         max_harvest_date = int(np.max(hd))
-        day_idx = np.arange(1, max_harvest_date + 1)[:,None,None] * np.ones((self.var.nCrop, self.var.nCell))[None,:,:]
+        day_idx = (
+            np.arange(1, max_harvest_date + 1)[:,None,None]
+            * np.ones((self.var.nCrop, self.var.nCell))[None,:,:]
+        )
         growing_season_idx = ((day_idx >= pd) & (day_idx <= hd))
-        crop_area = self.var.CropArea.copy()
+        crop_area = self.var.MaxCropAreaNew.copy()
         crop_area_daily = crop_area[None,...] * growing_season_idx  # get daily crop area
         total_crop_area_daily = np.sum(crop_area_daily, axis=1)     # sum of all crops grown on a given day
         max_crop_area = np.max(total_crop_area_daily, axis=0)       # get the max crop area considering all growing seasons
         scale_factor = np.divide(self.var.CroplandArea, max_crop_area, out=np.zeros_like(self.var.CroplandArea), where=max_crop_area>0)  # compute scale factor by dividing cropland area by max crop area
-        self.var.CropArea *= scale_factor
+        self.var.MaxCropAreaNew *= scale_factor
+    
+    def scale_irrigated_crop_area(self):
+        pd = self.var.PlantingDate.copy()[0,...]
+        hd = self.var.HarvestDate.copy()[0,...]
+        hd[hd < pd] += 365
+        max_harvest_date = np.max(hd).astype(np.int32)
+        day_idx = (
+            np.arange(1, max_harvest_date + 1)[:,None,None]
+            * np.ones((self.var.nCrop, self.var.nCell))[None,:,:]
+        )
+        growing_season_idx = ((day_idx >= pd) & (day_idx <= hd))
+        irrigated_crop_area = self.var.MaxCropAreaNew.copy()
+        # irrigated_crop_area = self.var.CropAreaNew.copy()
+        irrigated_crop_area_daily = (
+            irrigated_crop_area[None,...]
+            * growing_season_idx
+            * self.CropIsIrrigated[None,:,None]
+        )
+        total_irrigated_crop_area_daily = np.sum(
+            irrigated_crop_area_daily,
+            axis=1)
+        total_area_with_irrigation = np.sum(
+            self.var.area_with_irrigation,
+            axis=0)
+        index = total_irrigated_crop_area_daily > total_area_with_irrigation[None,...]
+        scale_factor = total_area_with_irrigation[None,...] / total_irrigated_crop_area_daily
+        scale_factor = scale_factor.clip(0.,1.)
+        
+        # multiply scale factor by crop area, set each crop
+        # to the minimum value, assuming that each crop is
+        # only represented in the crop calendar for one season.
 
+        adj_irrigated_crop_area = irrigated_crop_area[None,...] * scale_factor[:,None,:]
+        min_irrigated_crop_area = np.min(adj_irrigated_crop_area, axis=0)
+        # self.var.CropArea[self.CropIsIrrigated] = min_crop_area2[self.CropIsIrrigated]
+        
+        # crop_area[self.CropIsIrrigated] = min_irrigated_crop_area[self.CropIsIrrigated]
+        # return crop_area
+        self.var.CropAreaNew[self.CropIsIrrigated] = min_irrigated_crop_area[self.CropIsIrrigated]
+        
+        # TODO: think about introducing another crop type to
+        # represent fallow land - use this to absorb the land
+        # which cannot be irrigated due to lack of equipment.
+        
     def set_crop_area(self):
         """Function to read crop area"""
         start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
@@ -80,25 +126,48 @@ class CropArea(object):
                 # (i.e. CropAreaNew) and only update the area on the first day of
                 # the growing season.
                 date = datetime.datetime(self.var._modelTime.year, 1, 1, 0, 0, 0)
-                self.var.CropAreaNew = self.read_crop_area(date = date)
-                    
-            if np.any(self.var.GrowingSeasonDayOne):
-                self.var.CropArea[self.var.GrowingSeasonDayOne] = self.var.CropAreaNew[self.var.GrowingSeasonDayOne]
+                self.var.MaxCropAreaNew = self.read_crop_area(date = date)
                 self.scale_crop_area()
+            # if np.any(self.var.GrowingSeasonDayOne):
+            #     self.var.CropArea[self.var.GrowingSeasonDayOne] = self.var.CropAreaNew[self.var.GrowingSeasonDayOne]
+            #     self.scale_crop_area()
+            #     self.scale_irrigated_crop_area()
                 
         else:
             if start_of_model_run:
                 if not self.CropAreaFileNC == "None":
                     # If crop area doesn't change then there is no need for an
                     # intermediate variable
-                    self.var.CropArea = self.read_crop_area(date = None)
+                    self.var.MaxCropAreaNew = self.read_crop_area(date = None)
+                    # self.var.CropArea = self.read_crop_area(date = None)
                 else:
-                    self.var.CropArea = np.ones(
+                    # self.var.CropArea = np.ones(
+                    self.var.MaxCropAreaNew = np.ones(
                         (self.var.nFarm,
                          self.var.nCrop,
                          self.var.nCell))
                 self.scale_crop_area()
+                # self.scale_irrigated_crop_area()
 
+        # TODO: need to go through this properly
+        if start_of_model_run:
+            self.var.CropAreaNew = self.var.MaxCropAreaNew.copy()
+
+        if start_of_model_run or self.var.IsFirstDayOfYear:
+            # print 'crop_area:',self.var.MaxCropAreaNew[:,0]
+            self.var.CropAreaNew = self.var.MaxCropAreaNew.copy()
+            self.scale_irrigated_crop_area()  # MaxCropAreaNew -> CropAreaNew
+            # print 'crop_area:',self.var.CropAreaNew[:,0]
+            
+        if start_of_model_run:
+            self.var.CropArea = self.var.CropAreaNew.copy()
+
+        # if np.any(self.var.GrowingSeasonDayOne):
+        #     self.var.CropArea[self.var.GrowingSeasonDayOne] = self.var.CropAreaNew[self.var.GrowingSeasonDayOne]
+        if np.any(self.var.GrowingSeasonDayOne):
+            growing_season_day_one = self.var.GrowingSeasonDayOne[0,...]
+            self.var.CropArea[growing_season_day_one] = self.var.CropAreaNew[growing_season_day_one]
+            
     def compute_current_crop_area(self):
         """Function to work out the relative area of current crops and 
         fallow area, and divide fallow land proportionally between 
@@ -106,71 +175,48 @@ class CropArea(object):
         the program continues to compute the water balance for crops 
         which are not currently grown).
         """
-        crop_area = self.var.CropArea * self.var.GrowingSeasonIndex[0,:,:]
-        total_crop_area = np.sum(crop_area, axis=0)
+
+        # scale irrigated crop area so that the total area
+        # does not exceed the area equipped for irrigation.
+        crop_area = self.var.CropArea.copy()
+        crop_area_grown = crop_area * self.var.GrowingSeasonIndex[0,:,:]
+        total_crop_area_grown = np.sum(crop_area_grown, axis=0)
         
-        # Compute scale factor to represent the relative area of
-        # each crop not currently grown by dividing fallow area
+        # total_irrigated_crop_area_grown = np.sum(
+        #     (crop_area_grown * self.CropIsIrrigated[:,None]),
+        #     axis=0)
+        # total_area_with_irrigation = np.sum(
+        #     self.var.area_with_irrigation,
+        #     axis=0)
+        
+        # # compute scale factor by dividing the total area equipped
+        # # for irrigation in the grid square by the specified total
+        # # irrigated crop area grown. Limit the scale factor to a
+        # # maximum value of 1 so that where the specified area is
+        # # less than the area equipped for irrigation no scaling is
+        # # performed.
+        # scale_factor = np.divide(
+        #     total_area_with_irrigation,
+        #     total_irrigated_crop_area_grown,
+        #     out=np.zeros_like(total_irrigated_crop_area_grown),
+        #     where=total_irrigated_crop_area_grown>0
+        # )
+        # scale_factor = scale_factor.clip(0., 1.)
+
+        # # multiply irrigated crops by the scale factor, and compute
+        # # the total area of irrigated crops.
+        # crop_area_grown[self.CropIsIrrigated] *= scale_factor
+        # total_crop_area_grown = np.sum(crop_area_grown, axis=0)
+        
+        # Now, compute scale factor to represent the relative area
+        # of each crop not currently grown by dividing fallow area
         # by total fallow area
         crop_area_not_grown = (
-            self.var.CropArea
-            * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))        
+            crop_area
+            * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))
         total_crop_area_not_grown = np.sum(
-            crop_area_not_grown
-            * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]),
+            crop_area_not_grown,
             axis=0)
-
-        # TODO: estimate irrigated and unirrigated area
-        # farms without access to irrigation must grow rainfed crops, so allocate these first
-        # farms with irrigation can grow either rainfed or irrigated crops
-        # irrigated_crop_area = (
-        #     self.var.CropArea
-        #     * self.CropIsIrrigated[:,None,None]
-        #     * self.var.GrowingSeasonIndex[0,:,:]
-        # )
-        # total_irrigated_crop_area = np.sum(irrigated_crop_area, axis=0)
-
-        # # rainfed area
-        # # ############
-        # rainfed_area = (
-        #     self.var.CropArea
-        #     * np.logical_not(self.CropIsIrrigated[:,None,None])
-        #     * self.var.GrowingSeasonIndex[0,:,:]
-        # )
-        # total_rainfed_area = np.sum(rainfed_crop_area, axis=0)        
-        # rainfed_area_not_grown = (
-        #     self.var.CropArea
-        #     * np.logical_not(self.CropIsIrrigated[:,None,None])            
-        #     * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))        
-        # total_rainfed_area_not_grown = np.sum(
-        #     rainfed_area_not_grown,
-        #     axis=0)
-
-        # rainfed_scale_factor = np.divide(
-        #     rainfed_area_not_grown,
-        #     total_rainfed_area_not_grown,
-        #     out=np.zeros_like(rainfed_area_not_grown),
-        #     where=total_rainfed_area_not_grown>0)
-
-        # target_rainfed_fallow_area = np.clip(self.var.CroplandArea - total_rainfed_area, 0, None)
-        # rainfed_fallow_area = target_fallow_area * scale_factor
-        
-        
-        # # irrigated area
-        # # ##############
-        # irrigated_area = (
-        #     self.var.CropArea
-        #     * np.logical_not(self.var.CropIsIrrigated[:,None,None])
-        #     * self.var.GrowingSeasonIndex[0,:,:]
-        # )
-        # total_irrigated_area = np.sum(irrigated_crop_area, axis=0)        
-        # irrigated_area_not_grown = (
-        #     self.var.CropArea
-        #     * np.logical_not(self.var.CropIsIrrigated[:,None,None])            
-        #     * np.logical_not(self.var.GrowingSeasonIndex[0,:,:]))        
-        # total_irrigated_area_not_grown = np.sum(
-        #     irrigated_area_not_grown,
-        #     axis=0)
         
         scale_factor = np.divide(
             crop_area_not_grown,
@@ -181,37 +227,86 @@ class CropArea(object):
         # Compute the area which remains fallow during the growing
         # season, and scale according to the relative area of the
         # crops *not* currently grown.
-        target_fallow_area = np.clip(self.var.CroplandArea - total_crop_area, 0, None)
-        fallow_area = target_fallow_area * scale_factor
+        target_fallow_area = self.var.CroplandArea - total_crop_area_grown
+        target_fallow_area = target_fallow_area.clip(0., None)
 
-        self.var.CurrentCropArea = self.var.CropArea.copy()
+        # divide the required fallow area according to the relative
+        # area of the crops not currently grown.
+        fallow_area = target_fallow_area * scale_factor
+        self.var.CurrentCropArea = crop_area_grown.copy()
         self.var.CurrentCropArea[np.logical_not(self.var.GrowingSeasonIndex[0,:,:])] = (
             (fallow_area[np.logical_not(self.var.GrowingSeasonIndex[0,:,:])]))
+
+        # Now, divide CurrentCropArea between farms
         
-        # # Check CurrentCropArea sums to CroplandArea:
-        # print np.sum(self.var.CurrentCropArea[:,249])
-        # print self.var.CroplandArea[249]
+        # first allocate in proportion to rainfed area, because
+        # farmers without irrigation can ONLY grow rainfed crops
+        rainfed_crop_area = (
+            self.var.CurrentCropArea
+            * np.logical_not(self.CropIsIrrigated[:,None])
+        )
+        proportion_rainfed = (
+            self.var.area_without_irrigation
+            / np.sum(self.var.area_without_irrigation, axis=0)[None,:]
+        ) # dimensions: nfarm, ncell
         
+        total_rainfed_crop_area = np.sum(rainfed_crop_area, axis=0)
+        total_area_without_irrigation = np.sum(self.var.area_without_irrigation, axis=0)
+        
+        # the area to be allocated to cropland that is not
+        # equipped for irrigation is the minimum of the
+        # total rainfed crop area, and the area of cropland
+        # not equipped for irrigation.
+        rainfed_area_to_allocate = np.minimum(
+            total_area_without_irrigation,  # crop area
+            total_rainfed_crop_area)        # total area of cropland not equipped for irrigation
+        
+        rainfed_farm_crop_area = (
+            rainfed_area_to_allocate[None,:]
+            * proportion_rainfed
+        )
+
+        # allocate remaining rainfed area in proportion to
+        # irrigated area (TODO - should this be total cropland)
+        remaining_rainfed_area_to_allocate = np.maximum(
+            0.,
+            total_rainfed_crop_area - rainfed_area_to_allocate
+        )
+        proportion_irrigated = (
+            self.var.area_with_irrigation
+            / np.sum(self.var.area_with_irrigation, axis=0)[None,:]
+        )
+        additional_rainfed_farm_crop_area = (remaining_rainfed_area_to_allocate * proportion_irrigated)
+
+        # rainfed_farm_crop_area is an estimate of the area
+        # of rainfed crops in each farm category
+        rainfed_farm_crop_area += additional_rainfed_farm_crop_area
+        proportion_rainfed = (
+            rainfed_farm_crop_area
+            / total_rainfed_crop_area
+        )
+
         # CurrentCropArea represents the crop area in the entire grid
         # cell; it does not represent the area of the respective crops
         # grown on the respective farms. Thus, create a farm scale factor
         # to scale the current cropped area down to the level of individual
         # farms.
-        
-        # TODO: the default behaviour here should be to have one farm per
-        # grid cell, such that the farm_scale_factor equals 1
-
-        farm_scale_factor = np.divide(
-            self.var.FarmArea,
-            self.var.CroplandArea,
-            out=np.zeros_like(self.var.FarmArea),
-            where=self.var.CroplandArea>0)        
-        
-        # The farm scale factor represents the fraction of total cropland
-        # found within each farm. Thus, multiplying the scale factor by
-        # CurrentCropArea provides an estimate of the area of each crop
-        # within a given farm.        
-        self.var.FarmCropArea = farm_scale_factor[:,None,:] * self.var.CurrentCropArea
+        self.var.FarmCropArea = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
+        irrigated_scale_factor = (
+            proportion_irrigated[:,None,:]
+            * self.CropIsIrrigated[None,:,None]
+        )
+        rainfed_scale_factor = (
+            proportion_rainfed[:,None,:]
+            * np.logical_not(self.CropIsIrrigated[None,:,None])
+        )
+        farm_crop_area = (
+            (self.var.CurrentCropArea[None,...]
+             * irrigated_scale_factor)
+            + (self.var.CurrentCropArea[None,...]
+               * rainfed_scale_factor)
+        )
+        self.var.FarmCropArea = farm_crop_area.copy()
         
     def dynamic(self):
         self.read_cropland_area()

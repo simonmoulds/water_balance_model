@@ -34,7 +34,7 @@ class CoverFraction(BaseClass):
     def initial(self):
         self.coverFractionNC = str(self.configuration['landCoverFractionInputFile'])
         self.coverFractionVarName = str(self.configuration['landCoverFractionVariableName'])
-        self.var.coverFraction = np.zeros((self.var.nCell))
+        self.var.cover_fraction = np.zeros((self.var.nCell))
         self.update_cover_fraction()
         
     def update_cover_fraction(self):
@@ -46,7 +46,7 @@ class CoverFraction(BaseClass):
         if self.dynamicLandCover:
             if start_of_model_run or start_of_year:
                 date = datetime.datetime(self.var._modelTime.year, 1, 1, 0, 0, 0)
-                self.var.coverFraction = vos.netcdf2PCRobjClone(
+                cover_fraction = vos.netcdf2PCRobjClone(
                     self.coverFractionNC.format(
                         day=self.var._modelTime.currTime.day,
                         month=self.var._modelTime.currTime.month,
@@ -57,10 +57,12 @@ class CoverFraction(BaseClass):
                     # cloneMapAttributes = self.cloneMapAttributes,
                     cloneMapFileName = self.var.cloneMap,
                     LatitudeLongitude = True)[self.var.landmask]
+                cover_fraction = np.float64(cover_fraction)
+                self.var.cover_fraction = cover_fraction
         else:
             if start_of_model_run:
                 date = datetime.datetime(self.staticLandCoverYear, 1, 1, 0, 0, 0)
-                self.var.coverFraction = vos.netcdf2PCRobjClone(
+                cover_fraction = vos.netcdf2PCRobjClone(
                     self.coverFractionNC.format(
                         day=self.var._modelTime.currTime.day,
                         month=self.var._modelTime.currTime.month,
@@ -71,6 +73,8 @@ class CoverFraction(BaseClass):
                     # cloneMapAttributes = self.cloneMapAttributes,
                     cloneMapFileName = self.var.cloneMap,
                     LatitudeLongitude = True)[self.var.landmask]
+                cover_fraction = np.float64(cover_fraction)
+                self.var.cover_fraction = cover_fraction
                 
     def dynamic(self):
         self.update_cover_fraction()
@@ -352,8 +356,8 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         
         self.price_module = PriceData(var, self.configuration)
         
-        self.crop_area_module = CropArea(var, self.configuration)
         self.crop_parameters_module = CropParameters(var, self.configuration)
+        self.crop_area_module = CropArea(var, self.configuration)
         # self.growth_stage_module = GrowthStage(var)
         # self.crop_coefficient_module = CropCoefficient(var, self.configuration)
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
@@ -371,8 +375,8 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         
         self.price_module.initial()
         
-        self.crop_area_module.initial()
         self.crop_parameters_module.initial()
+        self.crop_area_module.initial()
         
         # self.crop_coefficient_module.initial()
         self.intercept_capacity_module.initial()
@@ -391,8 +395,8 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
 
         self.price_module.dynamic()
         
-        self.crop_area_module.dynamic()
         self.crop_parameters_module.dynamic()
+        self.crop_area_module.dynamic()
         
         # self.crop_coefficient_module.dynamic()
         self.intercept_capacity_module.dynamic()

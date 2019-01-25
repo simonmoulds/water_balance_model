@@ -79,11 +79,81 @@ description[aquacrop_variable_name]       = None
 comment[aquacrop_variable_name]           = None
 latex_symbol[aquacrop_variable_name]      = None
 
+aquacrop_variable_name = 'ETact_volume'
+netcdf_short_name[aquacrop_variable_name] = 'actual_evapotranspiration'
+netcdf_standard_name[aquacrop_variable_name] = 'actual_evapotranspiration'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','crop','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = 'm'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'IrrigationCost'
+netcdf_short_name[aquacrop_variable_name] = 'irrigation_cost'
+netcdf_standard_name[aquacrop_variable_name] = 'irrigation_cost'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = '1'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
 aquacrop_variable_name = 'irrigation_mean'
 netcdf_short_name[aquacrop_variable_name] = 'irrigation'
 netcdf_standard_name[aquacrop_variable_name] = 'irrigation'
 netcdf_dimensions[aquacrop_variable_name] = ('time','crop','lat','lon')
 netcdf_unit[aquacrop_variable_name]       = 'm'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'tubewell_count'
+netcdf_short_name[aquacrop_variable_name] = 'tubewell_count'
+netcdf_standard_name[aquacrop_variable_name] = 'tubewell_count'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = '1'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'Y'
+netcdf_short_name[aquacrop_variable_name] = 'crop_yield'
+netcdf_standard_name[aquacrop_variable_name] = 'crop_yield'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','crop','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = 't ha-1'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'Production'
+netcdf_short_name[aquacrop_variable_name] = 'crop_production'
+netcdf_standard_name[aquacrop_variable_name] = 'crop_production'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','crop','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = 't'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'irrigation'
+netcdf_short_name[aquacrop_variable_name] = 'irrigation'
+netcdf_standard_name[aquacrop_variable_name] = 'irrigation'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','crop','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = 'm'
+netcdf_long_name[aquacrop_variable_name]  = None
+description[aquacrop_variable_name]       = None
+comment[aquacrop_variable_name]           = None
+latex_symbol[aquacrop_variable_name]      = None
+
+aquacrop_variable_name = 'irrigation_volume'
+netcdf_short_name[aquacrop_variable_name] = 'irrigation'
+netcdf_standard_name[aquacrop_variable_name] = 'irrigation'
+netcdf_dimensions[aquacrop_variable_name] = ('time','farm','crop','lat','lon')
+netcdf_unit[aquacrop_variable_name]       = 'm3'
 netcdf_long_name[aquacrop_variable_name]  = None
 description[aquacrop_variable_name]       = None
 comment[aquacrop_variable_name]           = None

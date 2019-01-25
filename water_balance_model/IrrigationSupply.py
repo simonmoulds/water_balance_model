@@ -19,6 +19,7 @@ class IrrigationSupply(object):
         arr_zeros = np.zeros((self.var.nFarm, self.var.nCell))
         self.var.GwPumpingVol = arr_zeros.copy()
         self.var.SwPumpingVol = arr_zeros.copy()
+        self.var.IrrigationCost = arr_zeros.copy()
         self.var.UnmetIrrigationDemand = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.UnmetIrrigationDemandDays = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         
@@ -103,8 +104,9 @@ class IrrigationSupply(object):
             max_groundwater_supply_divs,
             out=np.zeros((self.var.nFarm, self.var.nCell)),
             where=max_groundwater_supply_divs>0)
+                
         max_groundwater_supply /= 1000 # litres -> m3                                     
-        max_groundwater_supply *= self.var.TubewellCount
+        max_groundwater_supply *= self.var.tubewell_count
 
         groundwater_supply = np.clip(
             groundwater_demand,

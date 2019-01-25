@@ -164,23 +164,20 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.initial_condition_module = InitialConditionManagedLand(self)
         self.root_zone_water_module = RootZoneWaterIrrigatedLand(self)
         self.snow_frost_module = SnowFrost(self)
-        
-        # self.drainage_module = Drainage(self)
         self.potential_et_module = PotentialEvapotranspiration(self)
-        
-        # self.evapotranspiration_module = Evapotranspiration(self)
         self.interception_module = Interception(self)
         self.irrigation_demand_module = IrrigationMultipleCrops(self)
         self.irrigation_supply_module = IrrigationSupply(self)
         self.infiltration_module = Infiltration(self)
         self.capillary_rise_module = CapillaryRise(self)
         self.drainage_module = Drainage(self)
-        self.actual_et_module = ActualEvapotranspiration(self)
-        
+        self.actual_et_module = ActualEvapotranspiration(self)        
         self.crop_yield_module = CropYield(self)
         self.income_module = Income(self)
-        self.investment_module = Investment(self)
         self.accounting_module = Accounting(self)
+        self.investment_module = Investment(self)
+        # self.investment_module = Investment(self)
+        # self.accounting_module = Accounting(self)
         self.grid_cell_mean_module = GridCellMean(self)
         self.add_dimensions()
         
@@ -189,25 +186,20 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.initial_condition_module.initial()
         self.root_zone_water_module.initial()
         self.snow_frost_module.initial()
-
-        # self.drainage_module.initial()
-        
-        # self.evapotranspiration_module.initial()
-        self.potential_et_module.initial()
-        
+        self.potential_et_module.initial()        
         self.interception_module.initial()
         self.irrigation_demand_module.initial()
         self.irrigation_supply_module.initial()
         self.infiltration_module.initial()
         self.capillary_rise_module.initial()
         self.drainage_module.initial()
-        
-        self.actual_et_module.initial()
-        
+        self.actual_et_module.initial()        
         self.crop_yield_module.initial()
         self.income_module.initial()
-        self.investment_module.initial()
         self.accounting_module.initial()
+        self.investment_module.initial()
+        # self.investment_module.initial()
+        # self.accounting_module.initial()
         self.grid_cell_mean_module.initial()
         self.reporting_module = Reporting(
             self,
@@ -223,8 +215,6 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         
         self.root_zone_water_module.dynamic()
         self.snow_frost_module.dynamic()
-        # self.drainage_module.dynamic()
-        # self.evapotranspiration_module.dynamic()
         self.potential_et_module.dynamic()
         self.interception_module.dynamic()
         self.root_zone_water_module.dynamic()
@@ -243,8 +233,10 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.actual_et_module.dynamic()
         self.crop_yield_module.dynamic()
         self.income_module.dynamic()
-        self.investment_module.dynamic()
         self.accounting_module.dynamic()
+        self.investment_module.dynamic()
+        # self.investment_module.dynamic()
+        # self.accounting_module.dynamic()
         self.grid_cell_mean_module.dynamic()
         self.reporting_module.report()
         

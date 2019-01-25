@@ -17,6 +17,8 @@ class Irrigation(object):
     def initial(self):
         arr_zeros = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
         self.var.irrigation = np.copy(arr_zeros)
+        self.var.irrigation_volume = np.copy(arr_zeros)
+        self.var.ETact_volume = np.copy(arr_zeros)  # TODO: move this somewhere else
         
     def dynamic(self):
         pass
@@ -144,6 +146,15 @@ class IrrigationMultipleCrops(Irrigation):
 
         self.var.irrigation_efficiency = 0.75 #1.  # TODO - put in input
         self.var.irrigation /= self.var.irrigation_efficiency
+
+        # TEMPORARY
+        self.var.irrigation_volume = self.var.irrigation * self.var.FarmCropArea
+        self.var.ETact_volume = self.var.ETact * self.var.FarmCropArea
+        
+        # print self.var.irrigation[0,:,0]
+        # print self.var.irrigation[2,:,0]
+        # print self.var.irrigation[4,:,0]
+        
         # self.var.water_available_for_infiltration += self.var.irrigation
 
         # # CWATM: "ignore demand if less that 1m3" - but I thought irrigation was a depth?

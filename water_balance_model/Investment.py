@@ -26,15 +26,55 @@ class Investment(object):
             self.var.UnmetIrrigationDemand,
             self.var.UnmetIrrigationDemandDays,
             out=np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell)),
-            where=self.var.UnmetIrrigationDemandDays>0)
+            where=self.var.UnmetIrrigationDemandDays>0)  # farm, crop, cell
 
+        total_mean_unmet_irrigation_demand = np.sum(
+            mean_unmet_irrigation_demand,
+            axis=1)             # farm, cell
+        
+        print 'total_unmet_irrigation_demand: '
+        print total_mean_unmet_irrigation_demand[:,0]
+
+        # max tubewell capacity is the maximum volume of water
+        # a single tubewell can abstract in a single day. It is
+        # a function of tubewell horsepower and groundwater
+        # depth. Hence we need to compute the average capacity
+        # during the growing season (see Tubewells class).
+        max_tubewell_capacity = 1000.
+
+        # required additional capacity is the the total unmet
+        # demand divided by the maximum tubewell capacity.
+        required_additional_tubewells = (
+            total_mean_unmet_irrigation_demand
+            / max_tubewell_capacity
+        )
+        required_additional_tubewells = np.ceil(required_additional_tubewells)
+
+        # TODO: not currently used
         return_on_investment = self.compute_return_on_investment()  # farm,cell
         positive_benefit = return_on_investment > 0                 # farm,cell
+        
         installation_cost = (self.var.TubewellInstallationCost + self.var.PumpCost)  # farm,cell
-        sufficient_resources = (self.var.SavingsAccount > installation_cost)
-        cond = positive_benefit & sufficient_resources
-        self.var.TubewellCount[cond] += 1
-
+        print 'savings:'
+        print self.var.SavingsAccount[:,0]
+        
+        farm_investment_factor = 0.75
+        tubewells_to_install = np.minimum(
+            required_additional_tubewells,
+            np.floor((self.var.SavingsAccount * farm_investment_factor) / installation_cost)
+        )
+        
+        print 'current tubewells:'
+        print self.var.tubewell_count[:,0]
+        # print 'tubewells to install:'
+        # print tubewells_to_install[:,0]
+        self.var.tubewell_count[positive_benefit] += tubewells_to_install[positive_benefit]
+        self.var.SavingsAccount -= (tubewells_to_install * installation_cost)
+        # print 'savings:'
+        # print self.var.SavingsAccount[:,0]
+        print 'updated tubewells:'
+        print self.var.tubewell_count[:,0]
+        
     def compute_return_on_investment(self):
         annual_cost_of_tubewell = (
             (self.var.TubewellInstallationCost / self.var.TubewellLifespan) +

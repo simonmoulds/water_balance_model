@@ -45,6 +45,7 @@ class Model(object):
             str(self._configuration.MASK_OUTLET['gridCellAreaInputFile']),
             str(self._configuration.MASK_OUTLET['gridCellAreaVariableName']),
             cloneMapFileName = self.cloneMap)
+        grid_cell_area = np.float64(grid_cell_area)
         self.grid_cell_area = grid_cell_area[self.landmask]
 
     def get_model_dimensions(self):

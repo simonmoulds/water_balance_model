@@ -124,6 +124,7 @@ class ActualEvapotranspiration(object):
         self.var.ETact = self.var.Eact + self.var.Tact + self.var.EWact
         
         self.var.ETact += self.var.interception_evaporation + self.var.snow_evap * 0.2  # CHECK
+        # self.var.ETact_volume = self.var.ETact * self.var.FarmCropArea
         
         self.var.ETpot = self.var.ETpot.clip(self.var.ETact, None)        
         

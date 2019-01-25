@@ -55,23 +55,25 @@ class Tubewells(object):
         pass
         
     def initial_tubewell_capacity(self):
-
-        # TODO - this is where initial tubewell ownership is read to the model
-
         initialTubewellCapacityNC = str(
             self.configuration['initialTubewellOwnershipInputFile'])
         tubewell_capacity_varname = str(
             self.configuration['initialTubewellOwnershipVariableName'])
-        tubewell_count = vos.netcdf2PCRobjCloneWithoutTime(
+        tubewell_ownership_rate = vos.netcdf2PCRobjCloneWithoutTime(
             initialTubewellCapacityNC,
             tubewell_capacity_varname,
             cloneMapFileName = self.var.cloneMap,
             LatitudeLongitude = True)
-        mask = np.broadcast_to(self.var.landmask, tubewell_count.shape)
-        tubewell_count = np.reshape(
-            tubewell_count[mask],
+        mask = np.broadcast_to(self.var.landmask, tubewell_ownership_rate.shape)
+        tubewell_ownership_rate = np.reshape(
+            tubewell_ownership_rate[mask],
             (self.var.nFarm, self.var.nCell))
-        self.var.TubewellCount = tubewell_count.copy()
+        tubewell_ownership_rate = np.float64(tubewell_ownership_rate)
+        self.var.TubewellOwnershipRate = tubewell_ownership_rate.copy()
+        self.var.tubewell_count = (
+            self.var.TubewellOwnershipRate
+            * self.var.nFarmPerCategory
+        ).round()
         
     def dynamic(self):
         pass
@@ -97,7 +99,8 @@ class CanalAccess(object):
         mask = np.broadcast_to(self.var.landmask, canal_access.shape)
         canal_access = np.reshape(
             canal_access[mask],
-            (self.var.nFarm, self.var.nCell))            
+            (self.var.nFarm, self.var.nCell))
+        canal_access = np.float64(canal_access)
         self.var.CanalAccess = canal_access.copy()
         # print np.max(self.var.CanalAccess)
 
@@ -177,12 +180,16 @@ class FarmParameters(object):
         self.diesel_price_module = DieselPrice(var, configuration)
         
     def initial(self):
+        self.set_farm_area()
         self.set_farm_category()
         self.set_farm_category_area()
-        self.set_farm_area()
+        self.set_number_of_farms_per_category()
+
+        self.diesel_price_module.initial()
         self.tubewell_module.initial()
         self.canal_access_module.initial()
-        self.diesel_price_module.initial()
+        
+        self.set_irrigated_rainfed_area()        
         
     def update_first_day_of_year(self):
         """Function to update variables pertaining to the 
@@ -223,6 +230,7 @@ class FarmParameters(object):
                     farm_area_new = np.reshape(
                         farm_area_new[mask],
                         (self.var.nFarm, self.var.nCell))
+                    farm_area_new = np.float64(farm_area_new)
 
                 if np.any(self.var.GrowingSeasonDayOne[0,:,:]):
                     self.var.FarmArea[self.var.GrowingSeasonDayOne[0,:,:]] = (
@@ -238,7 +246,9 @@ class FarmParameters(object):
                         (self.var.nFarm, self.var.nLat, self.var.nLon))
                     farm_area = np.reshape(
                         farm_area[mask],
-                        (self.var.nFarm, self.var.nCell))
+                        (self.var.nFarm, self.var.nCell)
+                    )
+                    farm_area = np.float64(farm_area)
                     self.var.FarmArea = farm_area.copy()
                 
     def set_farm_category_area(self):
@@ -260,11 +270,27 @@ class FarmParameters(object):
                         (self.var.nFarmSizeCategory, self.var.nLat, self.var.nLon))
                     farm_cat_area_new = np.reshape(
                         farm_cat_area_new[mask],
-                        (self.var.nFarmSizeCategory, self.var.nCell))
+                        (self.var.nFarmSizeCategory, self.var.nCell)
+                    )
+                    farm_cat_area_new = np.float64(farm_cat_area_new)                    
 
                 if np.any(self.var.GrowingSeasonDayOne):
                     self.var.FarmCategoryArea[self.var.GrowingSeasonDayOne] = (
                         farm_cat_area_new[self.var.GrowingSeasonDayOne])
+                    total_farm_category_area = np.broadcast_to(
+                        np.sum(self.var.FarmCategoryArea, axis=0)[None,:],
+                        (self.var.nFarmSizeCategory, self.var.nCell)
+                    )                
+                    scale_factor = np.divide(
+                        self.var.FarmCategoryArea,
+                        total_farm_category_area,
+                        out=np.zeros_like(self.var.FarmCategoryArea),
+                        where=total_farm_category_area > 0)
+                    self.var.FarmCategoryArea = (
+                        self.var.cover_fraction
+                        * self.var.grid_cell_area
+                        * scale_factor)
+                    
             else:
                 if start_of_model_run:
                     farm_cat_area = vos.netcdf2PCRobjCloneWithoutTime(
@@ -276,8 +302,24 @@ class FarmParameters(object):
                         (self.var.nFarmSizeCategory, self.var.nLat, self.var.nLon))
                     farm_cat_area = np.reshape(
                         farm_cat_area[mask],
-                        (self.var.nFarmSizeCategory, self.var.nCell))
+                        (self.var.nFarmSizeCategory, self.var.nCell)
+                    )
+                    farm_cat_area = np.float64(farm_cat_area)
                     self.var.FarmCategoryArea = farm_cat_area.copy()
+
+                    total_farm_category_area = np.broadcast_to(
+                        np.sum(self.var.FarmCategoryArea, axis=0)[None,:],
+                        (self.var.nFarmSizeCategory, self.var.nCell)
+                    )                
+                    scale_factor = np.divide(
+                        self.var.FarmCategoryArea,
+                        total_farm_category_area,
+                        out=np.zeros_like(self.var.FarmCategoryArea),
+                        where=total_farm_category_area > 0)
+                    self.var.FarmCategoryArea = (
+                        self.var.cover_fraction
+                        * self.var.grid_cell_area
+                        * scale_factor)
             
     def set_farm_category(self):
         if not self.FarmCategoryFileNC == "None":
@@ -317,19 +359,41 @@ class FarmParameters(object):
                         (self.var.nFarm, self.var.nCell))
                     self.var.FarmCategory = farm_category.copy()
 
-    def set_farm_irrigation_status(self):
-        self.var.farm_has_irrigation = ((self.var.TubewellCount > 0) | (self.var.CanalAccess > 0))
-
-    def set_irrigated_rainfed_area(self):
+    def set_number_of_farms_per_category(self):
         self.var.nFarmPerCategory = (
             self.var.FarmCategoryArea /
             self.var.FarmArea
+        ).round()
+        
+        self.var.FarmArea = (
+            self.var.FarmCategoryArea
+            / self.var.nFarmPerCategory
         )
-        num_tubewells = (
-            self.var.TubewellCount
-            * self.var.nFarmPerCategory
-        )        
-        tubewell_probability = self.var.TubewellCount.clip(0.,1.)
+
+    def update_tubewell_ownership_rate(self):
+        self.var.TubewellOwnershipRate = (
+            self.var.tubewell_count
+            / self.var.nFarmPerCategory
+        )
+    def set_irrigated_rainfed_area(self):
+
+        # TODO:
+        # * refine tubewell probability - at the moment assumes one
+        #   tubewell per farm (obviously incorrect) ???
+        # * estimate maximum number of tubewells a farmer is likely to
+        #   own. For example, they are unlikely to own more
+        #   tubewells than are needed to apply irrigation across the
+        #   farm area.
+        # * estimate distribution of farm sizes within a farm size
+        #   category. See https://stats.stackexchange.com/a/18689
+        #   for example of how to do this.
+        # * account for the fact that some farmers will require more
+        #   than one well, hence additional wells do not always
+        #   equate to additional irrigated area. We could try to
+        #   model this by working out (perhaps during a spinup period)
+        #   the optimum number of wells per farm.
+        
+        tubewell_probability = self.var.TubewellOwnershipRate.clip(0.,1.)
         canal_probability = self.var.CanalAccess.clip(0.,1.)
         canal_and_tubewell_probability = (
             tubewell_probability *
@@ -343,19 +407,31 @@ class FarmParameters(object):
         num_farms_with_canal_access = (
             self.var.nFarmPerCategory
             * canal_probability
-        )        
+        ).round()
+        area_with_canal_access = (
+            num_farms_with_canal_access
+            * self.var.FarmArea
+        )
         num_farms_with_tubewell = (
             self.var.nFarmPerCategory
             * tubewell_probability
-        )
+        ).round()
+        area_with_tubewell_access = (
+            num_farms_with_tubewell
+            * self.var.FarmArea
+        )        
         num_farms_with_irrigation = (
             self.var.nFarmPerCategory
             * canal_or_tubewell_probability
-        )
+        ).round()
+        num_farms_with_irrigation = num_farms_with_irrigation.clip(0., self.var.nFarmPerCategory)
+        
         num_farms_without_irrigation = (
             self.var.nFarmPerCategory
             - num_farms_with_irrigation
         )
+        num_farms_without_irrigation = num_farms_without_irrigation.clip(0., self.var.nFarmPerCategory)
+        
         area_with_irrigation = (
             num_farms_with_irrigation
             * self.var.FarmArea
@@ -363,20 +439,25 @@ class FarmParameters(object):
         area_without_irrigation = (
             self.var.FarmCategoryArea
             - area_with_irrigation
-        )
-        # print self.var.FarmCategoryArea[:,0]
-        # print area_with_irrigation[:,0]
-        # print area_without_irrigation[:,0]
+        )        
+        
+        self.var.area_with_irrigation = area_with_irrigation.copy()
+
+        # print 'area with irrigation:',self.var.area_with_irrigation[...,0]
+        
+        self.var.area_without_irrigation = area_without_irrigation.copy()
+        self.var.area_with_canal_access = area_with_canal_access.shape
         
     def dynamic(self):
         self.update_first_day_of_year()
+
         self.set_farm_area()
         self.set_farm_category()
         self.set_farm_category_area()
+        self.set_number_of_farms_per_category()
+        
+        self.diesel_price_module.dynamic()        
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
-        self.set_farm_irrigation_status()
+        self.update_tubewell_ownership_rate()
         self.set_irrigated_rainfed_area()
-        self.diesel_price_module.dynamic()        
-        # print self.var.FarmArea.shape
-        # print self.var.FarmCategoryArea.shape

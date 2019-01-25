@@ -57,7 +57,7 @@ class LandSurface(object):
         for index,module in enumerate(self.land_cover_module_names):
             self.cover_fraction[module] = getattr(
                 self.land_cover_modules[module],
-                'coverFraction')
+                'cover_fraction')
         self.total_cover_fraction = np.sum(
             self.cover_fraction.values(),
             axis=0)
@@ -70,7 +70,7 @@ class LandSurface(object):
         """
         if self.force_cover_fraction_sum_to_equal_one:
             for index,module in enumerate(self.land_cover_module_names):
-                vars(self.land_cover_modules[module])['coverFraction'] /= self.total_cover_fraction
+                vars(self.land_cover_modules[module])['cover_fraction'] /= self.total_cover_fraction
                 self.cover_fraction[module] /= self.total_cover_fraction
         self.total_cover_fraction = np.sum(
             self.cover_fraction.values(),
