@@ -8,44 +8,6 @@ import VirtualOS as vos
 import logging
 logger = logging.getLogger(__name__)
 
-# class CropPrice(object):
-    
-#     def __init__(self, var, configuration):
-#         self.var = var
-#         self.configuration = configuration
-#         self.CropPriceFileNC = str(self.configuration['cropPriceInputFile'])
-#         self.CropPriceVarName = str(self.configuration['cropPriceVariableName'])
-        
-#     def initial(self):
-#         self.var.CropPrice = np.zeros((self.var.nFarm, self.var.nCrop, self.var.nCell))
-
-#     def set_crop_price(self):
-#         """Function to read crop area"""
-#         start_of_model_run = (self.var._modelTime.timeStepPCR == 1)
-#         start_of_year = (self.var._modelTime.doy == 1)
-#         if start_of_model_run or start_of_year:
-#             if not self.CropPriceFileNC == "None":
-#                 date = datetime.datetime(self.var._modelTime.year, 1, 1, 0, 0, 0)
-#                 crop_price = vos.netcdf2PCRobjClone(
-#                     self.CropPriceFileNC,
-#                     self.CropPriceVarName,
-#                     date,
-#                     useDoy = None,
-#                     cloneMapFileName = self.var.cloneMap,
-#                     LatitudeLongitude = True)
-#                 crop_price = np.reshape(
-#                     crop_price[self.var.landmask_crop],
-#                     (self.var.nCrop, self.var.nCell))
-#                 crop_price = np.broadcast_to(
-#                     crop_price[None,:,:],
-#                     (self.var.nFarm,
-#                      self.var.nCrop,
-#                      self.var.nCell)).copy()
-#                 self.var.CropPrice = crop_price
-                                            
-#     def dynamic(self):
-#         self.set_crop_price()
-
 class Income(object):
 
     def __init__(self, var):

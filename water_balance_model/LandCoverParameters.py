@@ -350,16 +350,11 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         super(ManagedLandWithFarmerBehaviourParameters, self).__init__(var, config_section_name)
         self.soil_parameters_module = SoilParameters(var, config_section_name)
         self.topo_parameters_module = TopoParametersManagedLand(var, config_section_name)
-        self.cover_fraction_module = CoverFraction(var, self.configuration)
-        
+        self.cover_fraction_module = CoverFraction(var, self.configuration)        
         self.farm_parameters_module = FarmParameters(var, self.configuration)
-        
         self.price_module = PriceData(var, self.configuration)
-        
         self.crop_parameters_module = CropParameters(var, self.configuration)
         self.crop_area_module = CropArea(var, self.configuration)
-        # self.growth_stage_module = GrowthStage(var)
-        # self.crop_coefficient_module = CropCoefficient(var, self.configuration)
         self.intercept_capacity_module = MinimumInterceptionCapacity(var, self.configuration)
         self.root_depth_module = MaxRootDepthDynamic(var, self.configuration)
         self.root_fraction_module = RootFraction(var, self.configuration)
@@ -370,15 +365,10 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         self.soil_parameters_module.initial()
         self.topo_parameters_module.initial()
         self.cover_fraction_module.initial()
-
         self.farm_parameters_module.initial()
-        
         self.price_module.initial()
-        
         self.crop_parameters_module.initial()
         self.crop_area_module.initial()
-        
-        # self.crop_coefficient_module.initial()
         self.intercept_capacity_module.initial()
         self.root_depth_module.initial()
         self.root_fraction_module.initial()
@@ -390,15 +380,10 @@ class ManagedLandWithFarmerBehaviourParameters(LandCoverParameters):
         self.soil_parameters_module.dynamic()
         self.topo_parameters_module.dynamic()
         self.cover_fraction_module.dynamic()
-
         self.farm_parameters_module.dynamic()
-
         self.price_module.dynamic()
-        
         self.crop_parameters_module.dynamic()
         self.crop_area_module.dynamic()
-        
-        # self.crop_coefficient_module.dynamic()
         self.intercept_capacity_module.dynamic()
 
 

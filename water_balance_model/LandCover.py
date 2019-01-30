@@ -176,8 +176,6 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.income_module = Income(self)
         self.accounting_module = Accounting(self)
         self.investment_module = Investment(self)
-        # self.investment_module = Investment(self)
-        # self.accounting_module = Accounting(self)
         self.grid_cell_mean_module = GridCellMean(self)
         self.add_dimensions()
         
@@ -198,8 +196,6 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.income_module.initial()
         self.accounting_module.initial()
         self.investment_module.initial()
-        # self.investment_module.initial()
-        # self.accounting_module.initial()
         self.grid_cell_mean_module.initial()
         self.reporting_module = Reporting(
             self,
@@ -235,8 +231,6 @@ class ManagedLandWithFarmerBehaviour(LandCover):
         self.income_module.dynamic()
         self.accounting_module.dynamic()
         self.investment_module.dynamic()
-        # self.investment_module.dynamic()
-        # self.accounting_module.dynamic()
         self.grid_cell_mean_module.dynamic()
         self.reporting_module.report()
         

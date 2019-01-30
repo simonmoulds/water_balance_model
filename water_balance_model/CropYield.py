@@ -19,8 +19,6 @@ class CropYield(object):
     def update_cumulative_evapotranspiration(self):
         self.var.ETactCum[np.logical_not(self.var.GrowingSeasonIndex)] = 0
         self.var.ETpotCum[np.logical_not(self.var.GrowingSeasonIndex)] = 0            
-        # self.var.ETactCum[self.var.GrowingSeasonDayOne] = 0
-        # self.var.ETpotCum[self.var.GrowingSeasonDayOne] = 0            
         self.var.ETactCum[self.var.GrowingSeasonIndex] += self.var.Tact[self.var.GrowingSeasonIndex]
         self.var.ETpotCum[self.var.GrowingSeasonIndex] += self.var.Tpot[self.var.GrowingSeasonIndex]
 
@@ -44,10 +42,6 @@ class CropYield(object):
             * self.var.FarmCropArea
             / 10000.
         )
-        # print 'wheat crop      :',self.var.CropArea[2,0]
-        # print 'farm wheat      :',self.var.FarmCropArea[:,2,0]
-        # print 'total wheat     :',np.sum(self.var.FarmCropArea[:,2,0])
-        # print 'total wheat prod:',np.sum(self.var.Production[:,2,0])
         
     def dynamic(self):
         self.update_cumulative_evapotranspiration()

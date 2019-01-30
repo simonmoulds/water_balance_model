@@ -31,6 +31,7 @@ class Drainage(object):
             out=np.zeros_like(self.var.wc_range),
             where=self.var.wc_range>0)
         sat_term = sat_term.clip(0., 1.)
+        
         k = (
             self.var.ksat
             * np.sqrt(sat_term)

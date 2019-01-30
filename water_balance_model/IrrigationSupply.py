@@ -52,7 +52,7 @@ class IrrigationSupply(object):
     def irrigation_supply(self):
 
         # Compute irrigation demand in m3 (depth -> volume)
-        irrigation_depth = self.var.irrigation # / 1000
+        irrigation_depth = self.var.irrigation
         irrigation_demand = np.multiply(
             irrigation_depth,
             self.var.FarmCropArea,
@@ -62,7 +62,7 @@ class IrrigationSupply(object):
         # Sum along crop axis to get total irrigation demand across
         # all crops
         total_irrigation_demand = np.sum(irrigation_demand, axis=1)  # farm, cell
-
+        
         # Compute the relative irrigation demand of each crop grown
         # on a given farm (farm, crop, cell)
         relative_irrigation_demand = np.divide(
@@ -84,6 +84,17 @@ class IrrigationSupply(object):
             total_irrigation_demand - canal_demand,
             0, None)
 
+        total_gw_irrigation_demand_per_farm = (
+            groundwater_demand
+            / self.var.FarmArea
+        )
+        # cond = total_gw_irrigation_demand_per_farm > max_gw_irrigation_demand_per_farm
+        # max_gw_irrigation_demand_per_farm[cond] = total_gw_irrigation_demand_per_farm[cond]
+        # max_required_tubewells = np.ceil(
+        #     total_gw_irrigation_demand_per_farm
+        #     / max_groundwater_supply
+        # )
+        
         # Compute the maximum amount of groundwater which can be
         # extracted on a given day, based on assumptions about operating
         # hours and pump horsepower 
@@ -108,6 +119,14 @@ class IrrigationSupply(object):
         max_groundwater_supply /= 1000 # litres -> m3                                     
         max_groundwater_supply *= self.var.tubewell_count
 
+        # # ##################
+        # max_num_tubewells = 10  # **TODO** this is calculated in FarmParameters
+        # max_groundwater_supply_per_farm = (
+        #     max_groundwater_supply[None,:] *
+        #     np.arange(0, max_num_tubewells + 1)
+        # )
+        # # calculate probability of each tubewell category???
+                
         groundwater_supply = np.clip(
             groundwater_demand,
             None,
@@ -115,16 +134,7 @@ class IrrigationSupply(object):
 
         self.var.SwPumpingVol = canal_demand.copy()
         self.var.GwPumpingVol = groundwater_supply.copy()
-        
-        # unmet_irrigation_demand = np.clip(
-        #     (total_irrigation_demand
-        #      - canal_supply
-        #      - groundwater_supply),
-        #     0,
-        #     None)        
-        # self.var.UnmetIrrigationDemand += unmet_irrigation_demand
-        # self.var.UnmetIrrigationDemandDays[unmet_irrigation_demand > 0] += 1
-        
+                
         # ***TODO: adjust according to available account balance***        
         
         total_irrigation_supply = (
@@ -151,7 +161,6 @@ class IrrigationSupply(object):
             self.var.FarmCropArea,
             out=np.zeros_like(self.var.FarmCropArea),
             where=self.var.FarmCropArea > 0)
-        # irrigation_supply = np.round(irrigation_supply * 1000., decimals=3)
 
         self.var.irrigation = self.var.irrigation.clip(None, irrigation_supply)  # farm, crop, cell
         self.var.water_available_for_infiltration += self.var.irrigation
