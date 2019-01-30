@@ -76,7 +76,8 @@ class IrrigationSupply(object):
         canal_supply = np.broadcast_to(
             self.var.canal.CanalSupply,
             (self.var.nFarm, self.var.nCell)).copy()
-        canal_supply[np.logical_not(self.var.CanalAccess)] = 0
+        # canal_supply[np.logical_not(self.var.CanalAccess)] = 0
+        canal_supply[:] = 0     # TEMPORARY - FIXME!!!
         canal_demand = np.clip(canal_supply, 0, total_irrigation_demand)
 
         # Attempt to meet the outstanding demand from groundwater
@@ -86,7 +87,7 @@ class IrrigationSupply(object):
 
         total_gw_irrigation_demand_per_farm = (
             groundwater_demand
-            / self.var.FarmArea
+            / self.var.FarmArea[self.var.farm_index,...]
         )
         # cond = total_gw_irrigation_demand_per_farm > max_gw_irrigation_demand_per_farm
         # max_gw_irrigation_demand_per_farm[cond] = total_gw_irrigation_demand_per_farm[cond]
@@ -108,17 +109,19 @@ class IrrigationSupply(object):
             + np.divide(
                 (255.5998 * self.var.TubewellOperatingHours ** 2),
                 (self.var.groundwater.zGW ** 2 * 4 ** 4),
-                out=np.zeros((self.var.nFarm, self.var.nCell)),
+                # out=np.zeros((self.var.nFarm, self.var.nCell)),
+                out=np.zeros((self.var.nCell)),
                 where=self.var.groundwater.zGW>0))
         max_groundwater_supply = np.divide(
             max_groundwater_supply_divd,
             max_groundwater_supply_divs,
-            out=np.zeros((self.var.nFarm, self.var.nCell)),
+            # out=np.zeros((self.var.nFarm, self.var.nCell)),
+            out=np.zeros((self.var.nCell)),
             where=max_groundwater_supply_divs>0)
                 
         max_groundwater_supply /= 1000 # litres -> m3                                     
-        max_groundwater_supply *= self.var.tubewell_count
-
+        max_groundwater_supply = max_groundwater_supply[None,:] * self.var.num_tubewell_per_subcategory
+        
         # # ##################
         # max_num_tubewells = 10  # **TODO** this is calculated in FarmParameters
         # max_groundwater_supply_per_farm = (
@@ -126,13 +129,13 @@ class IrrigationSupply(object):
         #     np.arange(0, max_num_tubewells + 1)
         # )
         # # calculate probability of each tubewell category???
-                
+
         groundwater_supply = np.clip(
             groundwater_demand,
             None,
             max_groundwater_supply)
 
-        self.var.SwPumpingVol = canal_demand.copy()
+        self.var.SwPumpingVol = canal_demand.copy()  # FIXME
         self.var.GwPumpingVol = groundwater_supply.copy()
                 
         # ***TODO: adjust according to available account balance***        
