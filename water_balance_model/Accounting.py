@@ -18,8 +18,8 @@ class Accounting(object):
         self.var.SavingsAccount = np.zeros((self.var.nFarm, self.var.nCell))
         self.var.CurrentAccount = (
             np.ones((self.var.nFarm, self.var.nCell))
-            * 5000
-            * self.var.nFarmPerCategory
+            * 5000.
+            * self.var.num_farms_per_subcategory
         )
     
     def update_farm_accounts(self):

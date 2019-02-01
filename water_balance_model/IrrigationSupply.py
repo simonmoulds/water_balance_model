@@ -89,12 +89,6 @@ class IrrigationSupply(object):
             groundwater_demand
             / self.var.FarmArea[self.var.farm_index,...]
         )
-        # cond = total_gw_irrigation_demand_per_farm > max_gw_irrigation_demand_per_farm
-        # max_gw_irrigation_demand_per_farm[cond] = total_gw_irrigation_demand_per_farm[cond]
-        # max_required_tubewells = np.ceil(
-        #     total_gw_irrigation_demand_per_farm
-        #     / max_groundwater_supply
-        # )
         
         # Compute the maximum amount of groundwater which can be
         # extracted on a given day, based on assumptions about operating
@@ -103,33 +97,32 @@ class IrrigationSupply(object):
         max_groundwater_supply_divd = (
             self.var.TubewellOperatingHours
             * 129574.1
-            * self.var.PumpHorsePower)
+            * self.var.PumpHorsePower
+        )
         max_groundwater_supply_divs = (
             self.var.groundwater.zGW
             + np.divide(
                 (255.5998 * self.var.TubewellOperatingHours ** 2),
                 (self.var.groundwater.zGW ** 2 * 4 ** 4),
-                # out=np.zeros((self.var.nFarm, self.var.nCell)),
                 out=np.zeros((self.var.nCell)),
-                where=self.var.groundwater.zGW>0))
+                where=self.var.groundwater.zGW>0)
+        )
+        # max groundwater supply per tubewell in a grid cell
         max_groundwater_supply = np.divide(
             max_groundwater_supply_divd,
             max_groundwater_supply_divs,
-            # out=np.zeros((self.var.nFarm, self.var.nCell)),
             out=np.zeros((self.var.nCell)),
-            where=max_groundwater_supply_divs>0)
-                
-        max_groundwater_supply /= 1000 # litres -> m3                                     
-        max_groundwater_supply = max_groundwater_supply[None,:] * self.var.num_tubewell_per_subcategory
-        
-        # # ##################
-        # max_num_tubewells = 10  # **TODO** this is calculated in FarmParameters
-        # max_groundwater_supply_per_farm = (
-        #     max_groundwater_supply[None,:] *
-        #     np.arange(0, max_num_tubewells + 1)
-        # )
-        # # calculate probability of each tubewell category???
+            where=max_groundwater_supply_divs>0
+        )                
+        max_groundwater_supply /= 1000 # litres -> m3
 
+        # Multiply by number of tubewells per farm subcategory
+        # to get the maximum supply per farm.
+        max_groundwater_supply = (
+            max_groundwater_supply[None,:]
+            * self.var.num_tubewell_per_subcategory
+        )
+        
         groundwater_supply = np.clip(
             groundwater_demand,
             None,
@@ -142,33 +135,38 @@ class IrrigationSupply(object):
         
         total_irrigation_supply = (
             self.var.SwPumpingVol
-            + self.var.GwPumpingVol)
+            + self.var.GwPumpingVol
+        )
 
-        # Get irrigation supply as a volume, then divide by crop area
-        # to get depth
+        # Get irrigation supply per crop as a volume, and
+        # compute the unmet demand
         irrigation_supply_vol = np.multiply(
             total_irrigation_supply[:,None,:],
-            relative_irrigation_demand)
-
-        unmet_irrigation_demand = np.clip(
-            (irrigation_demand - irrigation_supply_vol),
-            0,
-            None)        
+            relative_irrigation_demand
+        )
+        unmet_irrigation_demand = np.maximum(
+            irrigation_demand - irrigation_supply_vol,
+            0
+        )
         self.var.UnmetIrrigationDemand += unmet_irrigation_demand
         self.var.UnmetIrrigationDemandDays[unmet_irrigation_demand > 0] += 1
         
-        # Lastly, limit calculated irrigation demand to the maximum
-        # available supply
+        # Convert irrigation volume to a depth by dividing by
+        # the crop area
         irrigation_supply = np.divide(
             irrigation_supply_vol,
             self.var.FarmCropArea,
             out=np.zeros_like(self.var.FarmCropArea),
             where=self.var.FarmCropArea > 0)
-
+        
+        # Limit the estimated irrigation demand to the maximum
+        # available supply
         self.var.irrigation = self.var.irrigation.clip(None, irrigation_supply)  # farm, crop, cell
+
+        # Add irrigation to the water available for infiltration
         self.var.water_available_for_infiltration += self.var.irrigation
 
-        # compute irrigation expenses
+        # Lastly, compute irrigation expenses
         self.irrigation_expenditure()
         
     def dynamic(self):

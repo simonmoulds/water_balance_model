@@ -195,10 +195,13 @@ class FarmParameters(object):
         # self.set_farm_category()
         self.set_farm_category_area()
         self.set_number_of_farms_per_category()
-        self.diesel_price_module.initial()
-        self.tubewell_module.initial()
-        self.canal_access_module.initial()        
-        self.set_irrigated_rainfed_area()        
+        self.diesel_price_module.initial()  # TODO: put this somewhere else...?
+        self.tubewell_module.initial()  # TODO: put this in InitialCondition
+        self.canal_access_module.initial()  # TODO: put this in InitialCondition
+        self.initial_irrigated_rainfed_area()  # TODO: put this in InitialCondition
+        self.update_farm_subcategory_area()
+        self.update_farm_subcategory_proportion()
+        self.update_farm_subcategory_area_equipped_for_irrigation()
         
     def update_first_day_of_year(self):
         """Function to update variables pertaining to the 
@@ -356,41 +359,13 @@ class FarmParameters(object):
             self.var.tubewell_count
             / self.var.nFarmPerCategory
         )
-        
-    def set_irrigated_rainfed_area(self):
-        # TODO:
-        # * estimate maximum number of tubewells a farmer is likely to
-        #   own. For example, they are unlikely to own more
-        #   tubewells than are needed to apply irrigation across the
-        #   farm area.
-        # * account for the fact that some farmers will require more
-        #   than one well, hence additional wells do not always
-        #   equate to additional irrigated area. We could try to
-        #   model this by working out (perhaps during a spinup period)
-        #   the optimum number of wells per farm.
 
-        # # we assume the distribution of tubewells can be modelled
-        # # using the Poisson distribution with parameter lambda, 
-        # # which we assume to equal the ownership rate. Hence, the
-        # # probability of owning at least one tubewell is 1 minus
-        # # the probability of owning none.
-        # def dpois(x, lambdas):
-        #     """Function to compute P[X=x] for the Poisson 
-        #     distribution.
-        #     """
-        #     return ((lambdas ** x) * np.exp(-lambdas)) / np.math.factorial(x)
-        
-        # tubewell_probability = 1. - dpois(0, self.var.TubewellOwnershipRate)
-        
+    def initial_irrigated_rainfed_area(self):
         canal_probability = self.var.CanalAccess.clip(0.,1.)
         
         # now work out the probability of owning n tubewells,
         # up to the maximum number of tubewells per farm category
-        # TODO: make these names more informative, remove superfluous variables
         num_tubewell_per_subcategory_list = []
-        prob_tubewell_list = []
-        prob_farm_list = []
-        farm_area_list = []
         num_farms_per_subcategory_list = []
         for index in range(self.var.nFarmSizeCategory):
 
@@ -399,31 +374,37 @@ class FarmParameters(object):
                 np.arange(self.var.max_num_tubewells[index] + 1)[:,None]
                 * np.ones((self.var.nCell))[None,:]
             )
-
-            # expected rate - lambda parameter in Poisson distribution
+            
+            # we assume the distribution of tubewells can be modelled
+            # using the Poisson distribution with parameter lambda, 
+            # which we assume to equal the ownership rate. Hence, the
+            # probability of owning at least one tubewell is 1 minus
+            # the probability of owning none.
             lambdas = self.var.TubewellOwnershipRate[index,...][None,...]
             prob_tubewell = (
                 ((lambdas ** num_tubewell_per_subcategory) * np.exp(-lambdas))
                 / scipy.special.factorial(num_tubewell_per_subcategory)
-            )
-            
-            # divide by sum so that probabilities sum to one
+            )            
+            # divide by sum so that probabilities sum to one, then
+            # repeat to account for the same category with/without
+            # canal access
             sum_prob_tubewell = np.sum(prob_tubewell, axis=0)
             prob_tubewell /= sum_prob_tubewell[None,...]
-
-            # repeat to account for canal/no canal access
-            num_tubewell_per_subcategory = np.repeat(num_tubewell_per_subcategory, 2, axis=0)
             prob_tubewell = np.repeat(prob_tubewell, 2, axis=0)
-            num_tubewell_per_subcategory_list.append(num_tubewell_per_subcategory)
-            prob_tubewell_list.append(prob_tubewell)
-
+            num_tubewell_per_subcategory = np.repeat(
+                num_tubewell_per_subcategory,
+                2,
+                axis=0)
+            num_tubewell_per_subcategory_list.append(
+                num_tubewell_per_subcategory
+            )
             # probability of canal for this category
             prob_canal = canal_probability[index,...]
             prob_not_canal = 1. - prob_canal
 
-            # compute probability of each farm belonging to the
-            # various subcategories
-            prob_farm = (
+            # compute proportion of each farm subcategory
+            # within a given category
+            farm_subcategory_proportion = (
                 prob_tubewell *
                 np.resize(
                     np.stack(
@@ -433,25 +414,30 @@ class FarmParameters(object):
                     prob_tubewell.shape
                 )
             )
-            prob_farm_list.append(prob_farm)
-
             # compute the area of each subcategory
-            farm_area = self.var.FarmCategoryArea[index,...] * prob_farm
-            # farm_area_list.append(farm_area)
-
-            # get the number of farms per subcategory
-            num_farms_per_subcategory = (
-                farm_area
-                / self.var.FarmArea[index,...]  # TODO: make sure this isn't adjusted before this point
+            farm_subcategory_area = (
+                self.var.FarmCategoryArea[index,...]
+                * farm_subcategory_proportion
             )
-            num_farms_per_subcategory_floor = np.floor(num_farms_per_subcategory)
+
+            # get the number of farms per subcategory, round to
+            # integers while preserving the sum
+            # (https://stackoverflow.com/a/792473)
+            num_farms_per_subcategory = (
+                farm_subcategory_area
+                / self.var.FarmArea[index,...]
+            )
+            num_farms_per_subcategory_floor = np.floor(
+                num_farms_per_subcategory
+            )
             num_farms_per_subcategory_remainder = (
                 num_farms_per_subcategory
                 - num_farms_per_subcategory_floor
-            )
-            
-            # negate array so that order is descending
-            remainder_order = num_farms_per_subcategory_remainder_order = np.argsort(
+            )            
+            # negate array so that order is descending, then
+            # add one so that the order starts at one rather
+            # than zero.
+            remainder_order = np.argsort(
                 -num_farms_per_subcategory_remainder,
                 axis=0
             )
@@ -467,21 +453,14 @@ class FarmParameters(object):
             num_farms_per_subcategory_floor[remainder_order > 0] += 1
             num_farms_per_subcategory_list.append(num_farms_per_subcategory_floor)
 
-            # update farm_area
-            farm_area = (
-                num_farms_per_subcategory
-                * self.var.FarmArea[index,...]
-            )
-            farm_area_list.append(farm_area)
-            # CHECK:
-            # print np.sum(farm_area, axis=0)[0]
-            # print self.var.FarmCategoryArea[index,0]
-            
+        self.var.num_farms_per_subcategory = np.concatenate(
+            num_farms_per_subcategory_list,
+            axis=0
+        )
         self.var.num_tubewell_per_subcategory = np.concatenate(
             num_tubewell_per_subcategory_list,
             axis=0
         )
-        
         self.var.has_canal_access = np.broadcast_to(
             np.resize(np.array([False,True]), self.var.nFarm)[:,None],
             (self.var.nFarm, self.var.nCell)
@@ -493,84 +472,36 @@ class FarmParameters(object):
             self.var.has_canal_access
             | self.var.has_tubewell_access
         )
-
-        # probability? weight/proportion may be more accurate
-        self.var.prob_farm = np.concatenate(prob_farm_list, axis=0)
-
-        # farm_area -> farm_subcategory_area
-        self.var.farm_area = np.concatenate(farm_area_list, axis=0)
         
+    def update_farm_subcategory_area(self):
+        self.var.farm_subcategory_area = (
+            self.var.FarmArea[self.var.farm_index,...]
+            * self.var.num_farms_per_subcategory
+        )
+
+    def update_farm_subcategory_proportion(self):
+        self.var.farm_subcategory_proportion = (
+            self.var.farm_subcategory_area
+            / self.var.FarmCategoryArea[self.var.farm_index,...]
+        )
+
+    def update_farm_subcategory_area_equipped_for_irrigation(self):
         self.var.area_with_irrigation = (
-            self.var.farm_area
+            self.var.farm_subcategory_area
             * self.var.has_irrigation
         )
         self.var.area_without_irrigation = (
-            self.var.farm_area
+            self.var.farm_subcategory_area
             * np.logical_not(self.var.has_irrigation)
         )
         
-        # print np.sum(self.var.farm_area, axis=0)[0]
-        # print np.sum(self.var.FarmCategoryArea, axis=0)[0]
-        
-        # # I don't think the following code is used:
-        
-        # # assume the probability of owning a tubewell is
-        # # independent of the probability of having access
-        # # to a canal (this is questionable - but leave it
-        # # for now)
-        # canal_and_tubewell_probability = (
-        #     tubewell_probability *
-        #     canal_probability
-        # )
-        # canal_or_tubewell_probability = (
-        #     tubewell_probability +
-        #     canal_probability -
-        #     canal_and_tubewell_probability
-        # )
-        # # num_farms_with_canal_access = (
-        # #     self.var.nFarmPerCategory
-        # #     * canal_probability
-        # # ).round()
-        # # area_with_canal_access = (
-        # #     num_farms_with_canal_access
-        # #     * self.var.FarmArea
-        # # )
-        # num_farms_with_tubewell = (
-        #     self.var.nFarmPerCategory
-        #     * tubewell_probability
-        # ).round()
-        # area_with_tubewell_access = (
-        #     num_farms_with_tubewell
-        #     * self.var.FarmArea
-        # )
-        # num_farms_with_irrigation = (
-        #     self.var.nFarmPerCategory
-        #     * canal_or_tubewell_probability
-        # ).round()
-        # num_farms_with_irrigation = num_farms_with_irrigation.clip(0., self.var.nFarmPerCategory)
-        
-        # num_farms_without_irrigation = (
-        #     self.var.nFarmPerCategory
-        #     - num_farms_with_irrigation
-        # )
-        # num_farms_without_irrigation = num_farms_without_irrigation.clip(0., self.var.nFarmPerCategory)
-        
-        # area_with_irrigation = (
-        #     num_farms_with_irrigation
-        #     * self.var.FarmArea
-        # )
-        # area_without_irrigation = (
-        #     self.var.FarmCategoryArea
-        #     - area_with_irrigation
-        # )
-        
-        # self.var.area_with_irrigation = area_with_irrigation.copy()
-        # self.var.area_without_irrigation = area_without_irrigation.copy()
-        # # self.var.area_with_canal_access = area_with_canal_access.shape
-        
+    # def update_irrigated_rainfed_area(self):
+    #     self.update_farm_subcategory_area()
+    #     self.update_farm_subcategory_proportion()
+    #     self.update_farm_subcategory_area_equipped_for_irrigation()
+
     def dynamic(self):
         self.update_first_day_of_year()
-
         self.set_farm_area()
         self.set_farm_category_area()
         self.set_number_of_farms_per_category()        
@@ -578,4 +509,7 @@ class FarmParameters(object):
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
         self.update_tubewell_ownership_rate()
-        self.set_irrigated_rainfed_area()
+        # self.update_irrigated_rainfed_area()
+        self.update_farm_subcategory_area()
+        self.update_farm_subcategory_proportion()
+        self.update_farm_subcategory_area_equipped_for_irrigation()
