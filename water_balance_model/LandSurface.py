@@ -129,16 +129,37 @@ class LandSurface(object):
         var_list = []
         for module in module_names:
             attr = getattr(self.land_cover_modules[module], var_name)
-            
-            # ***TODO*** this needs to be weighted according to
-            # the area of farm/crop (perhaps see fao66_behaviour
-            # on how to do this). Taking the mean, as we do here,
-            # is only acceptable if both farm and crop dimensions
-            # have length 1
-            attr = np.mean(attr, axis=(0,1))
-            
+            # attempt to retrieve FarmCropArea from module to
+            # use as a weight. If not present then we assume
+            # the size of these dimensions is one.
+            try:
+                farm_crop_area = getattr(
+                    self.land_cover_modules[module],
+                    'FarmCropArea'
+                )
+                if var_name in self.soil_variables_to_aggregate:
+                    farm_crop_area = np.broadcast_to(
+                        farm_crop_area[...,None,:],
+                        attr.shape
+                    )
+                    
+            except AttributeError:
+                farm_crop_area = np.ones_like(attr)
+
+            # weighted average along farm, crop dimensions
+            attr = np.average(
+                attr,
+                axis=(0,1),
+                weights=farm_crop_area
+            )
+
+            # weight variable by area allocated to land cover
+            # represented by module
             attr *= (self.cover_fraction[module] * self.var.grid_cell_area)
             var_list.append(attr)
+
+        # sum variables; if average is required, divide by total
+        # cover fraction
         var = np.sum(var_list, axis=0)
         if var_name in self.variables_to_aggregate_by_averaging:
             var /= self.var.grid_cell_area * total_cover_fraction

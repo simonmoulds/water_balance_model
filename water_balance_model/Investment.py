@@ -123,11 +123,9 @@ class Investment(object):
             axis=0
         )
 
-        # print 'num tubewells before:',np.sum(self.var.num_farms_per_subcategory * self.var.num_tubewell_per_subcategory, axis=0)[0]
         self.var.num_farms_per_subcategory += num_farms_to_add_to_category
         self.var.num_farms_per_subcategory -= num_farms_to_remove_from_category
-        # print 'num tubewells after :',np.sum(self.var.num_farms_per_subcategory * self.var.num_tubewell_per_subcategory, axis=0)[0]
-
+        
         # TODO: tubewells to uninstall because they are no longer required
 
         # Update savings account by multiplying the number of farms to remove 

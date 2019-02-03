@@ -70,11 +70,7 @@ class Tubewells(object):
             tubewell_ownership_rate[mask],
             (self.var.nFarmSizeCategory, self.var.nCell))
         tubewell_ownership_rate = np.float64(tubewell_ownership_rate)
-        self.var.TubewellOwnershipRate = tubewell_ownership_rate.copy()
-        self.var.tubewell_count = (
-            self.var.TubewellOwnershipRate
-            * self.var.nFarmPerCategory
-        ).round()
+        self.var.tubewell_ownership_rate = tubewell_ownership_rate.copy()
         
     def dynamic(self):
         pass
@@ -142,7 +138,15 @@ class DieselPrice(object):
     def dynamic(self):
         self.set_diesel_price()
         # print np.max(self.var.DieselPrice)
-        
+
+class FarmArea(object):
+    """TODO"""
+    pass
+
+class FarmCategoryArea(object):
+    """TODO"""
+    pass
+
 class FarmParameters(object):
     def __init__(self, var, configuration):
         self.var = var
@@ -202,6 +206,7 @@ class FarmParameters(object):
         self.update_farm_subcategory_area()
         self.update_farm_subcategory_proportion()
         self.update_farm_subcategory_area_equipped_for_irrigation()
+        self.update_tubewell_count()
         
     def update_first_day_of_year(self):
         """Function to update variables pertaining to the 
@@ -348,19 +353,17 @@ class FarmParameters(object):
             self.var.FarmArea
         ).round()
 
-        # update farm area so that FarmArea * nFarmPerCategory = FarmCategoryArea
+        # update farm area so that FarmCategoryArea is a
+        # multiple of FarmArea
         self.var.FarmArea = (
             self.var.FarmCategoryArea
             / self.var.nFarmPerCategory
         )
 
-    def update_tubewell_ownership_rate(self):
-        self.var.TubewellOwnershipRate = (
-            self.var.tubewell_count
-            / self.var.nFarmPerCategory
-        )
-
     def initial_irrigated_rainfed_area(self):
+        """Function to set the initial areas of irrigated 
+        and rainfed farms
+        """
         canal_probability = self.var.CanalAccess.clip(0.,1.)
         
         # now work out the probability of owning n tubewells,
@@ -380,7 +383,7 @@ class FarmParameters(object):
             # which we assume to equal the ownership rate. Hence, the
             # probability of owning at least one tubewell is 1 minus
             # the probability of owning none.
-            lambdas = self.var.TubewellOwnershipRate[index,...][None,...]
+            lambdas = self.var.tubewell_ownership_rate[index,...][None,...]
             prob_tubewell = (
                 ((lambdas ** num_tubewell_per_subcategory) * np.exp(-lambdas))
                 / scipy.special.factorial(num_tubewell_per_subcategory)
@@ -433,10 +436,11 @@ class FarmParameters(object):
             num_farms_per_subcategory_remainder = (
                 num_farms_per_subcategory
                 - num_farms_per_subcategory_floor
-            )            
-            # negate array so that order is descending, then
-            # add one so that the order starts at one rather
-            # than zero.
+            )
+            # order the decimal remainder (negate so that
+            # order is descending), then add one so that
+            # the order starts at one rather than zero,
+            # which is convenient for the next step.
             remainder_order = np.argsort(
                 -num_farms_per_subcategory_remainder,
                 axis=0
@@ -494,11 +498,12 @@ class FarmParameters(object):
             self.var.farm_subcategory_area
             * np.logical_not(self.var.has_irrigation)
         )
-        
-    # def update_irrigated_rainfed_area(self):
-    #     self.update_farm_subcategory_area()
-    #     self.update_farm_subcategory_proportion()
-    #     self.update_farm_subcategory_area_equipped_for_irrigation()
+
+    def update_tubewell_count(self):
+        self.var.tubewell_count = (
+            self.var.num_tubewell_per_subcategory
+            * self.var.num_farms_per_subcategory
+        )
 
     def dynamic(self):
         self.update_first_day_of_year()
@@ -508,8 +513,7 @@ class FarmParameters(object):
         self.diesel_price_module.dynamic()        
         self.tubewell_module.dynamic()
         self.canal_access_module.dynamic()
-        self.update_tubewell_ownership_rate()
-        # self.update_irrigated_rainfed_area()
         self.update_farm_subcategory_area()
         self.update_farm_subcategory_proportion()
         self.update_farm_subcategory_area_equipped_for_irrigation()
+        self.update_tubewell_count()
